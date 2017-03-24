@@ -1,0 +1,38 @@
+﻿  ECCExecutor.cpp
+c:\users\luis\documents\visual studio 2015\projects\ecc\ecc\PlatformUtil.h(38): warning C4018: "<": Konflikt zwischen "signed" und "unsigned"
+c:\users\luis\documents\visual studio 2015\projects\ecc\ecc\PlatformUtil.h(65): warning C4018: "<": Konflikt zwischen "signed" und "unsigned"
+c:\users\luis\documents\visual studio 2015\projects\ecc\ecc\ECCData.h(121): warning C4267: "return": Konvertierung von "size_t" nach "int", Datenverlust möglich
+c:\users\luis\documents\visual studio 2015\projects\ecc\ecc\Kernel.h(147): warning C4267: "Argument": Konvertierung von "size_t" nach "cl_uint", Datenverlust möglich
+c:\users\luis\documents\visual studio 2015\projects\ecc\ecc\ECCExecutor.h(121): warning C4244: "Initialisierung": Konvertierung von "float" in "int", möglicher Datenverlust
+c:\users\luis\documents\visual studio 2015\projects\ecc\ecc\ECCExecutor.h(122): warning C4244: "Initialisierung": Konvertierung von "float" in "int", möglicher Datenverlust
+c:\users\luis\documents\visual studio 2015\projects\ecc\ecc\ECCExecutor.h(353): warning C4267: "Initialisierung": Konvertierung von "size_t" nach "int", Datenverlust möglich
+c:\users\luis\documents\visual studio 2015\projects\ecc\ecc\Kernel.h(82): warning C4838: Konvertierung von "int" zu "std::size_t" erfordert eine einschränkende Konvertierung
+  c:\users\luis\documents\visual studio 2015\projects\ecc\ecc\ECCExecutor.h(191): note: Siehe Verweis auf die Instanziierung der gerade kompilierten Funktions-template "void Kernel::setGlobalSize<int>(int)".
+c:\users\luis\documents\visual studio 2015\projects\ecc\ecc\Kernel.h(89): warning C4838: Konvertierung von "int" zu "std::size_t" erfordert eine einschränkende Konvertierung
+  c:\users\luis\documents\visual studio 2015\projects\ecc\ecc\ECCExecutor.h(192): note: Siehe Verweis auf die Instanziierung der gerade kompilierten Funktions-template "void Kernel::setLocalSize<int>(int)".
+  Kernel.cpp
+c:\users\luis\documents\visual studio 2015\projects\ecc\ecc\PlatformUtil.h(38): warning C4018: "<": Konflikt zwischen "signed" und "unsigned"
+c:\users\luis\documents\visual studio 2015\projects\ecc\ecc\PlatformUtil.h(65): warning C4018: "<": Konflikt zwischen "signed" und "unsigned"
+c:\users\luis\documents\visual studio 2015\projects\ecc\ecc\Kernel.h(147): warning C4267: "Argument": Konvertierung von "size_t" nach "cl_uint", Datenverlust möglich
+  main.cpp
+c:\users\luis\documents\visual studio 2015\projects\ecc\ecc\PlatformUtil.h(38): warning C4018: "<": Konflikt zwischen "signed" und "unsigned"
+c:\users\luis\documents\visual studio 2015\projects\ecc\ecc\PlatformUtil.h(65): warning C4018: "<": Konflikt zwischen "signed" und "unsigned"
+c:\users\luis\documents\visual studio 2015\projects\ecc\ecc\ECCData.h(121): warning C4267: "return": Konvertierung von "size_t" nach "int", Datenverlust möglich
+c:\users\luis\documents\visual studio 2015\projects\ecc\ecc\Kernel.h(147): warning C4267: "Argument": Konvertierung von "size_t" nach "cl_uint", Datenverlust möglich
+c:\users\luis\documents\visual studio 2015\projects\ecc\ecc\ECCExecutor.h(121): warning C4244: "Initialisierung": Konvertierung von "float" in "int", möglicher Datenverlust
+c:\users\luis\documents\visual studio 2015\projects\ecc\ecc\ECCExecutor.h(122): warning C4244: "Initialisierung": Konvertierung von "float" in "int", möglicher Datenverlust
+c:\users\luis\documents\visual studio 2015\projects\ecc\ecc\ECCExecutor.h(353): warning C4267: "Initialisierung": Konvertierung von "size_t" nach "int", Datenverlust möglich
+main.cpp(31): warning C4244: "Initialisierung": Konvertierung von "double" in "int", möglicher Datenverlust
+main.cpp(43): warning C4267: "Argument": Konvertierung von "size_t" nach "int", Datenverlust möglich
+main.cpp(50): warning C4267: "Argument": Konvertierung von "size_t" nach "int", Datenverlust möglich
+c:\users\luis\documents\visual studio 2015\projects\ecc\ecc\Kernel.h(82): warning C4838: Konvertierung von "int" zu "std::size_t" erfordert eine einschränkende Konvertierung
+  c:\users\luis\documents\visual studio 2015\projects\ecc\ecc\ECCExecutor.h(191): note: Siehe Verweis auf die Instanziierung der gerade kompilierten Funktions-template "void Kernel::setGlobalSize<int>(int)".
+c:\users\luis\documents\visual studio 2015\projects\ecc\ecc\Kernel.h(89): warning C4838: Konvertierung von "int" zu "std::size_t" erfordert eine einschränkende Konvertierung
+  c:\users\luis\documents\visual studio 2015\projects\ecc\ecc\ECCExecutor.h(192): note: Siehe Verweis auf die Instanziierung der gerade kompilierten Funktions-template "void Kernel::setLocalSize<int>(int)".
+  Code wird generiert.
+  29 of 1874 functions ( 1.5%) were compiled, the rest were copied from previous compilation.
+    0 functions were new in current compilation
+    19 functions had inline decision re-evaluated but remain unchanged
+  Codegenerierung ist abgeschlossen.
+  ECC.vcxproj -> C:\Users\Luis\documents\visual studio 2015\Projects\ECC\x64\Release\ECC.exe
+  ECC.vcxproj -> C:\Users\Luis\documents\visual studio 2015\Projects\ECC\x64\Release\ECC.pdb (Full PDB)
