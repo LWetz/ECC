@@ -8,7 +8,7 @@ ClassifierChain::ClassifierChain(int _numValues, std::vector<int> &_orderedLabel
 
 	for (int label = 0; label < orderedLabels.size(); ++label)
 	{
-		forests.push_back(RForest(_numValues, maxLevel, orderedLabels[label], excludeLabels, forestSize));
+		forests.push_back(Forest(_numValues, maxLevel, orderedLabels[label], excludeLabels, forestSize));
 		excludeLabels.erase(excludeLabels.begin());
 	}
 }
@@ -18,7 +18,7 @@ ClassifierChain::ClassifierChain(int numValues, int numLabels, int maxLevel, int
 {
 }
 
-const std::vector<RForest>& ClassifierChain::getForests()
+const std::vector<Forest>& ClassifierChain::getForests()
 {
 	return forests;
 }

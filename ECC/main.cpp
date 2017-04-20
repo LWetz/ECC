@@ -52,7 +52,7 @@ int main(int argc, char* argv[])
 			
 			for (int i = inst.getNumAttribs(); i < inst.getValueCount(); ++i)
 			{
-				inst.getData()[i] = -100.0;
+				inst.getData()[i] = 1.0;
 			}
 
 			evalInstances.push_back(inst);
@@ -62,8 +62,8 @@ int main(int argc, char* argv[])
 		ECCData trainData(trainInstances, data.getAttribCount(), data.getLabelCount());
 		ECCData evalData(evalInstances, data.getAttribCount(), data.getLabelCount());
 
-		ECCExecutor eccex(true, true, 10, 244, 10, 1, 1, 1);
-		eccex.runBuild(trainData, 10, 6, 6, 100, 50);
+		ECCExecutor eccex(10, 244, 16);
+		eccex.runBuild(trainData, 16, 8, 8, 100, 50);
 
 		std::vector<double> values;
 		std::vector<int> votes;

@@ -1,0 +1,7 @@
+ECC.*
+./Debug
+./x64
+./.git
+./.vs
+./ECC/Debug
+./ECC/x64

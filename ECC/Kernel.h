@@ -3,32 +3,17 @@
 #include <string>
 #include <vector>
 #include "PlatformUtil.h"
+#include "Buffer.h"
 
 class Kernel
 {
 private:
 	cl_kernel _kernel;
+	cl_event ev;
 
 	std::vector<size_t> globalSize, localSize;
 	size_t dim;
 	double runTime;
-
-	cl_mem setArg(size_t idx, void* hostptr, size_t size, cl_mem_flags flags)
-	{
-		cl_mem mem = PlatformUtil::createBuffer(flags, size);
-
-		if (hostptr)
-		{
-			if (flags != CL_MEM_WRITE_ONLY)
-				PlatformUtil::checkError(clEnqueueWriteBuffer(PlatformUtil::getCommandQueue(), mem, CL_TRUE, 0, size, hostptr, 0, NULL, NULL));
-
-			PlatformUtil::checkError(clSetKernelArg(_kernel, idx, sizeof(cl_mem), &mem));
-		}
-		else
-		{
-			PlatformUtil::checkError(clSetKernelArg(_kernel, idx, size, NULL));
-		}
-	}
 
 public:
 	Kernel(cl_program program, const std::string& kernelName) : dim(1), runTime(-1.0)
@@ -43,42 +28,23 @@ public:
 		clReleaseKernel(_kernel);
 	}
 
-	void SetInputArg(size_t idx, int value)
+	void SetArg(size_t idx, int value)
 	{
 		clSetKernelArg(_kernel, idx, sizeof(value), &value);
 	}
 
-	cl_mem SetInputArg(size_t idx, void* data, size_t size, bool needMem = false)
+	void SetLocalArg(size_t idx, size_t size)
 	{
-		cl_mem mem = setArg(idx, data, size, CL_MEM_READ_ONLY);
-		if (!needMem)
-		{
-			clReleaseMemObject(mem);
-			mem = NULL;
-		}
-		return mem;
+		PlatformUtil::checkError(clSetKernelArg(_kernel, idx, size, NULL));
 	}
 
-	cl_mem SetOutputArg(size_t idx, void* data, size_t size, bool needMem = false)
+	void SetArg(size_t idx, Buffer& buff, bool write = false)
 	{
-		cl_mem mem = setArg(idx, data, size, CL_MEM_WRITE_ONLY);
-		if (!needMem)
-		{
-			clReleaseMemObject(mem);
-			mem = NULL;
-		}
-		return mem;
-	}
+		if (write && buff.getFlags() != CL_MEM_WRITE_ONLY)
+			buff.write();
 
-	cl_mem SetInputOutputArg(size_t idx, void* data, size_t size, bool needMem = false)
-	{
-		cl_mem mem = setArg(idx, data, size, CL_MEM_READ_WRITE);
-		if (!needMem)
-		{
-			clReleaseMemObject(mem);
-			mem = NULL;
-		}
-		return mem;
+		cl_mem mem = buff.getMem();
+		PlatformUtil::checkError(clSetKernelArg(_kernel, idx, sizeof(cl_mem), &mem));
 	}
 
 	void setDim(size_t dimension)
@@ -130,12 +96,13 @@ public:
 
 	double getRuntime()
 	{
-		return runTime;
-	}
+		clWaitForEvents(1, &ev);
 
-	void readResult(cl_mem mem, size_t size, void* hostptr)
-	{
-		PlatformUtil::checkError(clEnqueueReadBuffer(PlatformUtil::getCommandQueue(), mem, CL_TRUE, 0, size, hostptr, 0, NULL, NULL));
+		cl_ulong time_start, time_end;
+
+		clGetEventProfilingInfo(ev, CL_PROFILING_COMMAND_START, sizeof(time_start), &time_start, NULL);
+		clGetEventProfilingInfo(ev, CL_PROFILING_COMMAND_END, sizeof(time_end), &time_end, NULL);
+		return (time_end - time_start) / 1e6;
 	}
 
 	void execute()
@@ -149,21 +116,7 @@ public:
 			}
 		}
 
-		cl_event ev;
 		PlatformUtil::checkError(clEnqueueNDRangeKernel(PlatformUtil::getCommandQueue(), _kernel, dim, NULL, globalSize.data(), localSize.data(), 0, NULL, &ev));
-		clWaitForEvents(1, &ev);
-		clFinish(PlatformUtil::getCommandQueue());
-
-		cl_ulong time_start, time_end;
-
-		double total_time;
-		clGetEventProfilingInfo(ev, CL_PROFILING_COMMAND_START, sizeof(time_start), &time_start, NULL);
-		clGetEventProfilingInfo(ev, CL_PROFILING_COMMAND_END, sizeof(time_end), &time_end, NULL);
-		total_time = (time_end - time_start) / 1e6;
-
-		runTime = total_time;
-
-		clFinish(PlatformUtil::getCommandQueue());
 	}
 };
 

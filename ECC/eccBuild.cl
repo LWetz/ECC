@@ -308,19 +308,19 @@ void reduceToSigns(
 }
 
 kernel void eccBuild(       //input (read-only)
-                            global int* gidMultiplier,
+                            int gidMultiplier,
                             global int* seeds,
                             global double* data,
-                            global int* pDataSize,
-                            global int* pSubSetSize,
+                            int dataSize,
+                            int SubSetSize,
                             global int* labelOrder,
-                            global int* pNumValues,
-                            global int* pNumAttributes,
-                            global int* pMaxAttributes,
-                            global int* pMaxLevel,
-                            global int* pChainSize,
-                            global int* pMaxSplits,                      
-                            global int* pForestSize,
+                            int numValues,
+                            int numAttributes,
+                            int maxAttributes,
+                            int maxLevel,
+                            int chainSize,
+                            int maxSplits,                      
+                            int forestSize,
                             //read-write
                             global int* instances,
                             global int* instancesNext,
@@ -332,22 +332,13 @@ kernel void eccBuild(       //input (read-only)
                             ) 
 { 
     int gid = get_global_id(0);
-    int dataSize = *pDataSize;
-    int subSetSize = *pSubSetSize;
-    int maxAttributes = *pMaxAttributes;
-    int numValues = *pNumValues;
-    int numAttributes = *pNumAttributes;
-    int maxLevel = *pMaxLevel;
-    int chainSize = *pChainSize;
-    int maxSplits = *pMaxSplits;
     int nodesLastLevel = pown(2.f, maxLevel);
     int nodesPerTree = pown(2.f, maxLevel + 1) - 1;
     int instancesStart = maxSplits * gid;
     int instancesLengthStart = nodesLastLevel * gid;
     int rootNode = nodesPerTree * gid;
-    int forestSize = *pForestSize;
     int ensembleSize = get_global_size(0) / (forestSize * chainSize);
-    int labelAt = (int) floor(((float) (gid * *gidMultiplier) / (float) get_global_size(0)) * (chainSize * ensembleSize));
+    int labelAt = (int) floor(((float) (gid * gidMultiplier) / (float) get_global_size(0)) * (chainSize * ensembleSize));
     int seed = seeds[gid];
 
     instancesLength[instancesLengthStart] = maxSplits;

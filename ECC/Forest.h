@@ -1,8 +1,8 @@
 #pragma once
 #include<vector>
-#include"RTree.h"
+#include"Tree.h"
 
-class RForest
+class Forest
 {
 	const int maxLevel;
 	const int treeSize;
@@ -11,12 +11,12 @@ class RForest
 
 	const int label;
 	std::vector<int> excludeLabels;
-	std::vector<RTree> forest;
+	std::vector<Tree> forest;
 
 public:
-	RForest(int _numValues, int _maxLevel, int _label, std::vector<int>& _excludeLabelIndices, int _forestSize);
+	Forest(int _numValues, int _maxLevel, int _label, std::vector<int>& _excludeLabelIndices, int _forestSize);
 
-	const std::vector<RTree>& getTrees();
+	const std::vector<Tree>& getTrees();
 	int getMaxLevel();
 	int getTreeSize();
 	int getForestSize();

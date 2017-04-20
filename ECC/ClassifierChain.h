@@ -1,7 +1,7 @@
 #pragma once
 #include <vector>
 #include <array>
-#include "RForest.h"
+#include "Forest.h"
 
 class ClassifierChain
 {
@@ -12,13 +12,13 @@ private:
 	const int chainSize;
 	const int totalSize;
 
-	std::vector<RForest> forests;
+	std::vector<Forest> forests;
     std::vector<int> orderedLabels;
 public:
 	ClassifierChain(int _numValues, std::vector<int> &_orderedLabels, int _maxLevel, int _forestSize);
 	ClassifierChain(int numValues, int numLabels, int maxLevel, int forestSize);
 
-	const std::vector<RForest>& getForests();
+	const std::vector<Forest>& getForests();
 	const std::vector<int>& getLabelOrder();
 	int getMaxLevel();
 	int getTreeSize();

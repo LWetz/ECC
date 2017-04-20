@@ -8,37 +8,16 @@
 #include "Kernel.h"
 #include <chrono>
 #include "Util.h"
+#include "Parameters.h"
 
 class ECCExecutor
 {
 	EnsembleOfClassifierChains *ecc;
 
-	Kernel* classifyKernel;
-	Kernel* buildKernel;
-
 	bool partitionInstance;
 	bool oldKernelMode;
 
 	long time;
-
-	struct Buffer
-	{
-		void* data;
-		size_t size;
-		cl_mem memObj;
-
-		Buffer(size_t _size) : data(new uint8_t[_size]), size(_size), memObj(NULL)
-		{
-			memset(data, 0, size);
-		}
-
-		void clear()
-		{
-			delete[] data;
-			if(memObj != NULL)
-				clReleaseMemObject(memObj);
-		}
-	};
 
 	Buffer nodeValueBuffer;
 	Buffer nodeIndexBuffer;
@@ -49,13 +28,8 @@ class ECCExecutor
 	int ensembleSize;
 	int maxAttributes;
 
-	size_t treesPerThread;
-	size_t chainsPerThread;
-	size_t instancesPerThread;
-
-	size_t treesPerGroup;
-	size_t chainsPerGroup;
-	size_t instancesPerGroup;
+	double oldTime;
+	double newTime;
 
 	std::vector<std::vector<int>> partitionInstances(ECCData& data, EnsembleOfClassifierChains& ecc)
 	{
@@ -84,43 +58,64 @@ class ECCExecutor
 		return indicesList;
 	}
 
-	std::string buildOptionString()
+	static std::string buildOptionString(int numChains, int numInstances, int numTrees, int numAttributes, int numLabels, int maxLevel, int nodesPerTree)
 	{
 		std::stringstream strstr;
-		strstr << "-D INSTANCES_PER_ITEM=" << instancesPerThread << " -D CHAINS_PER_ITEM=" << chainsPerThread << " -D TREES_PER_ITEM=" << treesPerThread << std::endl;
+		strstr << " -D NUM_CHAINS=" << numChains
+			<< " -D NUM_INSTANCES=" << numInstances
+			<< " -D NUM_TREES=" << numTrees
+			<< " -D NUM_LABELS=" << numLabels
+			<< " -D NUM_ATTRIBUTES=" << numAttributes
+			<< " -D MAX_LEVEL=" << maxLevel
+			<< " -D NODES_PER_TREE=" << nodesPerTree
+
+			<< " -D NUM_WG_CHAINS_SC=" << NUM_WG_CHAINS_SC
+			<< " -D NUM_WG_INSTANCES_SC=" << NUM_WG_INSTANCES_SC
+			<< " -D NUM_WG_TREES_SC=" << NUM_WG_TREES_SC
+
+			<< " -D NUM_WG_CHAINS_SR=" << NUM_WG_CHAINS_SR
+			<< " -D NUM_WG_INSTANCES_SR=" << NUM_WG_INSTANCES_SR
+
+			<< " -D NUM_WG_LABELS_FC=" << NUM_WG_LABELS_FC
+			<< " -D NUM_WG_CHAINS_FC=" << NUM_WG_CHAINS_FC
+			<< " -D NUM_WG_INSTANCES_FC=" << NUM_WG_INSTANCES_FC
+
+			<< " -D NUM_WG_LABELS_FR=" << NUM_WG_LABELS_FR
+			<< " -D NUM_WG_INSTANCES_FR=" << NUM_WG_INSTANCES_FR
+
+			<< " -D NUM_WI_CHAINS_SC=" << NUM_WI_CHAINS_SC
+			<< " -D NUM_WI_INSTANCES_SC=" << NUM_WI_INSTANCES_SC
+			<< " -D NUM_WI_TREES_SC=" << NUM_WI_TREES_SC
+
+			<< " -D NUM_WI_CHAINS_SR=" << NUM_WI_CHAINS_SR
+			<< " -D NUM_WI_INSTANCES_SR=" << NUM_WI_INSTANCES_SR
+			<< " -D NUM_WI_TREES_SR=" << NUM_WI_TREES_SR
+
+			<< " -D NUM_WI_LABELS_FC=" << NUM_WI_LABELS_FC
+			<< " -D NUM_WI_INSTANCES_FC=" << NUM_WI_INSTANCES_FC
+			<< " -D NUM_WI_CHAINS_FC=" << NUM_WI_CHAINS_FC
+
+			<< " -D NUM_WI_LABELS_FR=" << NUM_WI_LABELS_FR
+			<< " -D NUM_WI_INSTANCES_FR=" << NUM_WI_INSTANCES_FR
+			<< " -D NUM_WI_CHAINS_FR=" << NUM_WI_CHAINS_FR;
 		return strstr.str();
 	}
 
 public:
-	ECCExecutor(bool build, bool classify, int _maxLevel, int _maxAttributes, int _forestSize,
-		int _instancesPerThread, int _chainsPerThread, int _treesPerThread,
-		int _instancesPerGroup, int _chainsPerGroup, int _treesPerGroup)
+	ECCExecutor(int _maxLevel, int _maxAttributes, int _forestSize)
 		: nodeIndexBuffer(NULL), nodeValueBuffer(NULL), labelOrderBuffer(NULL), partitionInstance(true),
-		maxLevel(_maxLevel), forestSize(_forestSize), maxAttributes(_maxAttributes), oldKernelMode(false),
-		instancesPerThread(_instancesPerThread), chainsPerThread(_chainsPerThread), treesPerThread(_treesPerThread),
-		instancesPerGroup(_instancesPerGroup), chainsPerGroup(_chainsPerGroup), treesPerGroup(_treesPerGroup)
+		maxLevel(_maxLevel), forestSize(_forestSize), maxAttributes(_maxAttributes), oldKernelMode(false)
 	{
-		if (build)
-		{
-			cl_program prog;
-			PlatformUtil::buildProgramFromFile("eccBuild.cl", prog);//("\\\\X-THINK\\Users\\Public\\eccBuild.cl", prog);
-			buildKernel = new Kernel(prog, "eccBuild");
-			clReleaseProgram(prog);
-		}
-
-		if (classify)
-		{
-			cl_program prog;
-			
-			PlatformUtil::buildProgramFromFile(oldKernelMode ? "OldKernels/eccClassify.cl" : "eccClassify.cl", prog, buildOptionString().c_str());
-			classifyKernel = new Kernel(prog, "eccClassify");
-			clReleaseProgram(prog);
-		}
 	}
 
 	void runBuild(ECCData& data, int forestsPerRun, int ensembleSize, int ensemblesPerRun, int ensembleSubSetSize, int forestSubSetSize)
 	{
 		std::cout << std::endl << "--- BUILD ---" << std::endl;
+		cl_program prog;
+		PlatformUtil::buildProgramFromFile("eccBuild.cl", prog);//("\\\\X-THINK\\Users\\Public\\eccBuild.cl", prog);
+		Kernel* buildKernel = new Kernel(prog, "eccBuild");
+		clReleaseProgram(prog);
+
 		if (data.getSize() == ensembleSubSetSize && data.getSize() == forestSubSetSize)
 			partitionInstance = false;
 		else
@@ -134,30 +129,30 @@ public:
 		this->chainSize = ecc->getChainSize();
 		this->ensembleSize = ecc->getEnsembleSize();
 
-		labelOrderBuffer = Buffer(sizeof(int) * ecc->getEnsembleSize() * ecc->getChainSize());
+		labelOrderBuffer = Buffer(sizeof(int) * ecc->getEnsembleSize() * ecc->getChainSize(), CL_MEM_READ_ONLY);
 
 		int i = 0;
 		for (ClassifierChain chain : ecc->getChains())
 		{
 			for (int label : chain.getLabelOrder())
 			{
-				static_cast<int*>(labelOrderBuffer.data)[i++] = label;
+				static_cast<int*>(labelOrderBuffer.getData())[i++] = label;
 			}
 		}
 
-		nodeValueBuffer = Buffer(sizeof(double) * ecc->getTotalSize());
-		nodeIndexBuffer = Buffer(sizeof(int) * ecc->getTotalSize());
-		Buffer tmpNodeValueBuffer(sizeof(double) * globalSize * nodesPerTree);
-		Buffer tmpNodeIndexBuffer(sizeof(int) * globalSize * nodesPerTree);
+		nodeValueBuffer = Buffer(sizeof(double) * ecc->getTotalSize(), CL_MEM_READ_WRITE);
+		nodeIndexBuffer = Buffer(sizeof(int) * ecc->getTotalSize(), CL_MEM_READ_WRITE);
+		Buffer tmpNodeValueBuffer(sizeof(double) * globalSize * nodesPerTree, CL_MEM_READ_WRITE);
+		Buffer tmpNodeIndexBuffer(sizeof(int) * globalSize * nodesPerTree, CL_MEM_READ_WRITE);
 
 
 		int dataSize = data.getSize();
-		Buffer dataBuffer(data.getValueCount() * data.getSize() * sizeof(double));
+		Buffer dataBuffer(data.getValueCount() * data.getSize() * sizeof(double), CL_MEM_READ_ONLY);
 
 		int dataBuffIdx = 0;
 		for (MultilabelInstance inst : data.getInstances())
 		{
-			memcpy(static_cast<double*>(dataBuffer.data) + dataBuffIdx, inst.getData().data(), inst.getValueCount() * sizeof(double));
+			memcpy(static_cast<double*>(dataBuffer.getData()) + dataBuffIdx, inst.getData().data(), inst.getValueCount() * sizeof(double));
 			dataBuffIdx += inst.getValueCount();
 		}
 
@@ -166,7 +161,7 @@ public:
 		int numAttributes = data.getAttribCount();
 
 		int maxSplits = ecc->getForestSubSetSize() - 1;
-		Buffer instancesBuffer(sizeof(int) * maxSplits*globalSize);
+		Buffer instancesBuffer(sizeof(int) * maxSplits*globalSize, CL_MEM_READ_WRITE);
 
 		int instBuffIdx = 0;
 		std::vector<std::vector<int>> indicesList(partitionInstances(data, *ecc));
@@ -182,16 +177,16 @@ public:
 					lpos = 0;
 				}
 
-				static_cast<int*>(instancesBuffer.data)[instBuffIdx++] = indices[lpos++];
+				static_cast<int*>(instancesBuffer.getData())[instBuffIdx++] = indices[lpos++];
 				++intsAdded;
 			}
 		}
 
-		Buffer instancesNextBuffer(sizeof(int) * maxSplits*globalSize);
-		Buffer instancesLengthBuffer(sizeof(int) * nodesLastLevel*globalSize);
-		Buffer instancesNextLengthBuffer(sizeof(int) * nodesLastLevel*globalSize);
-		Buffer seedsBuffer(sizeof(int) * globalSize);
-		Buffer voteBuffer(sizeof(int) * nodesLastLevel*globalSize);
+		Buffer instancesNextBuffer(sizeof(int) * maxSplits*globalSize, CL_MEM_READ_WRITE);
+		Buffer instancesLengthBuffer(sizeof(int) * nodesLastLevel*globalSize, CL_MEM_READ_WRITE);
+		Buffer instancesNextLengthBuffer(sizeof(int) * nodesLastLevel*globalSize, CL_MEM_READ_WRITE);
+		Buffer seedsBuffer(sizeof(int) * globalSize, CL_MEM_READ_ONLY);
+		Buffer voteBuffer(sizeof(int) * nodesLastLevel*globalSize, CL_MEM_READ_WRITE);
 
 		int gidMultiplier = 1;
 		int ensembleRuns = ensembleSize / ensemblesPerRun;
@@ -203,27 +198,25 @@ public:
 
 		double totalTime = .0;
 
-		buildKernel->SetInputArg(1, seedsBuffer.data, seedsBuffer.size);
-		buildKernel->SetInputArg(2, dataBuffer.data, dataBuffer.size);
-		buildKernel->SetInputArg(3, dataSize);
-		buildKernel->SetInputArg(4, subSetSize);
-		buildKernel->SetInputArg(5, labelOrderBuffer.data, labelOrderBuffer.size);
-		buildKernel->SetInputArg(6, numValues);
-		buildKernel->SetInputArg(7, numAttributes);
-		buildKernel->SetInputArg(8, maxAttributes);
-		buildKernel->SetInputArg(9, maxLevel);
-		buildKernel->SetInputArg(10, chainSize);
-		buildKernel->SetInputArg(11, maxSplits);
-		buildKernel->SetInputArg(12, forestSize);
-		buildKernel->SetInputOutputArg(13, instancesBuffer.data, instancesBuffer.size);
-		buildKernel->SetInputOutputArg(14, instancesNextBuffer.data, instancesNextBuffer.size);
-		buildKernel->SetInputOutputArg(15, instancesLengthBuffer.data, instancesLengthBuffer.size);
-		buildKernel->SetInputOutputArg(16, instancesNextLengthBuffer.data, instancesNextLengthBuffer.size);
-		tmpNodeValueBuffer.memObj = 
-			buildKernel->SetInputOutputArg(17, tmpNodeValueBuffer.data, tmpNodeValueBuffer.size);
-		tmpNodeIndexBuffer.memObj = 
-			buildKernel->SetInputOutputArg(18, tmpNodeIndexBuffer.data, tmpNodeIndexBuffer.size);
-		buildKernel->SetInputOutputArg(19, voteBuffer.data, voteBuffer.size);
+		buildKernel->SetArg(1, seedsBuffer, true);
+		buildKernel->SetArg(2, dataBuffer, true);
+		buildKernel->SetArg(3, dataSize);
+		buildKernel->SetArg(4, subSetSize);
+		buildKernel->SetArg(5, labelOrderBuffer, true);
+		buildKernel->SetArg(6, numValues);
+		buildKernel->SetArg(7, numAttributes);
+		buildKernel->SetArg(8, maxAttributes);
+		buildKernel->SetArg(9, maxLevel);
+		buildKernel->SetArg(10, chainSize);
+		buildKernel->SetArg(11, maxSplits);
+		buildKernel->SetArg(12, forestSize);
+		buildKernel->SetArg(13, instancesBuffer, true);
+		buildKernel->SetArg(14, instancesNextBuffer, true);
+		buildKernel->SetArg(15, instancesLengthBuffer, true);
+		buildKernel->SetArg(16, instancesNextLengthBuffer, true);
+		buildKernel->SetArg(17, tmpNodeValueBuffer, true);
+		buildKernel->SetArg(18, tmpNodeIndexBuffer, true);
+		buildKernel->SetArg(19, voteBuffer, true);
 
 		Util::StopWatch stopWatch;
 		stopWatch.start();
@@ -231,12 +224,12 @@ public:
 		{
 			for (int forest = 0; forest < ensembleSize; forest += ensemblesPerRun)
 			{
-				buildKernel->SetInputArg(0, &gidMultiplier, sizeof(gidMultiplier));
+				buildKernel->SetArg(0, gidMultiplier);
 
 				for (int seed = 0; seed < globalSize; ++seed)
 				{
 					int rnd = Util::randomInt(INT_MAX);
-					static_cast<int*>(seedsBuffer.data)[seed] = rnd;
+					static_cast<int*>(seedsBuffer.getData())[seed] = rnd;
 				}
 
 				//std::ofstream ofs("cmp2.txt");
@@ -270,11 +263,11 @@ public:
 
 				//printBuffer<double>(tmpNodeValueBuffer, ofs);
 				//printBuffer<int>(tmpNodeIndexBuffer, ofs);
-				buildKernel->readResult(tmpNodeIndexBuffer.memObj, tmpNodeIndexBuffer.size, tmpNodeIndexBuffer.data);
-				buildKernel->readResult(tmpNodeValueBuffer.memObj, tmpNodeValueBuffer.size, tmpNodeValueBuffer.data);
+				tmpNodeIndexBuffer.read();
+				tmpNodeValueBuffer.read();
 
-				memcpy(static_cast<uint8_t*>(nodeIndexBuffer.data) + (gidMultiplier - 1)*tmpNodeIndexBuffer.size, tmpNodeIndexBuffer.data, tmpNodeIndexBuffer.size);
-				memcpy(static_cast<uint8_t*>(nodeValueBuffer.data) + (gidMultiplier - 1)*tmpNodeIndexBuffer.size, tmpNodeValueBuffer.data, tmpNodeValueBuffer.size);
+				memcpy(static_cast<uint8_t*>(nodeIndexBuffer.getData()) + (gidMultiplier - 1)*tmpNodeIndexBuffer.getSize(), tmpNodeIndexBuffer.getData(), tmpNodeIndexBuffer.getSize());
+				memcpy(static_cast<uint8_t*>(nodeValueBuffer.getData()) + (gidMultiplier - 1)*tmpNodeIndexBuffer.getSize(), tmpNodeValueBuffer.getData(), tmpNodeValueBuffer.getSize());
 
 				++gidMultiplier;
 			}
@@ -291,6 +284,8 @@ public:
 		instancesNextLengthBuffer.clear();
 		seedsBuffer.clear();
 		voteBuffer.clear();
+
+		delete buildKernel;
 	}
 
 	template<typename T>
@@ -308,105 +303,199 @@ public:
 	{
 		runClassifyOld(data, values, votes);
 		runClassifyNew(data, values, votes);
-		//oldKernelMode ? runClassifyOld(data, values, votes) : runClassifyNew(data, values, votes);
+		std::cout << "Speedup: " << oldTime / newTime << std::endl;
 	}
 
 private:
 	int* votesCmp;
 	double* resultCmp;
 
-	void validateResults(const ECCData& data, const Buffer& voteBuffer, const Buffer& resultBuffer)
+	typedef struct OutputAtom
 	{
-		bool correct = true;
-		for (int inst = 0; inst < data.getSize() && correct; ++inst)
+		double result;
+		int vote;
+	}OutputAtom;
+
+	void validateResults(const ECCData& data, const Buffer& resultBuffer)
+	{
+		int errors = 0;
+		for (int inst = 0; inst < data.getSize(); ++inst)
 		{
-			for (int label = 0; label < data.getLabelCount() && correct; ++label)
+			for (int label = 0; label < data.getLabelCount(); ++label)
 			{
-				int* vote = static_cast<int*>(voteBuffer.data) + (inst * data.getLabelCount() + label);
-				double* result = static_cast<double*>(resultBuffer.data) + (inst * data.getLabelCount() + label);
+				int idx = (inst * data.getLabelCount() + label);
+				int vote = static_cast<OutputAtom*>(resultBuffer.getData())[idx].vote;
+				double result = static_cast<OutputAtom*>(resultBuffer.getData())[idx].result;
 
-				if (abs(*vote - votesCmp[inst * data.getLabelCount() + label]) > 1e-06)
+				bool err = false;
+				if (abs(vote - votesCmp[inst * data.getLabelCount() + label]) > 1e-06)
 				{
-					correct = false;
+					err = true;
 				}
 
-				if (abs(*result - resultCmp[inst * data.getLabelCount() + label]) > 1e-06)
+				if (abs(result - resultCmp[inst * data.getLabelCount() + label]) > 1e-06)
 				{
-					correct = false;
+					err = true;
 				}
+
+				if (err) { ++errors; std::cout << "ERROR:"; }
+
+				std::cout << "(inst: " << inst << ", label:" << label << ") NEW:(" << result << ", " << vote << ") OLD:(" << resultCmp[inst * data.getLabelCount() + label] << ", " << votesCmp[inst * data.getLabelCount() + label] << ")" << std::endl;
 			}
 		}
 
-		if (!correct)
-			std::cout << "Results not correct!" << std::endl;
+		if (errors)
+			std::cout << "Results not correct! errors: " << errors << std::endl;
 	}
+
+	std::array<double, 3*236> oldLabels;
+	std::array<double, 3*236> oldResults;
 
 	void runClassifyNew(ECCData& data, std::vector<double>& values, std::vector<int>& votes)
 	{
 		std::cout << std::endl << "--- NEW CLASSIFICATION ---" << std::endl;
+		int nodesPerTree = pow(2.0f, maxLevel + 1) - 1;
+		std::string optionString = buildOptionString(ensembleSize, data.getSize(), forestSize, data.getAttribCount(), data.getLabelCount(), maxLevel, nodesPerTree);
 		cl_program prog;
-		PlatformUtil::buildProgramFromFile("eccClassify.cl", prog, buildOptionString().c_str());
-		classifyKernel = new Kernel(prog, "eccClassify");
+		PlatformUtil::buildProgramFromFile("stepCalcKernel.cl", prog, optionString.c_str());
+		Kernel* stepCalcKernel = new Kernel(prog, "stepCalc");
 		clReleaseProgram(prog);
 
-		PlatformUtil::buildProgramFromFile("eccClassifyReduce.cl", prog, buildOptionString().c_str());
-		Kernel* classifyReduceKernel = new Kernel(prog, "eccClassifyReduce");
+		PlatformUtil::buildProgramFromFile("stepReduceKernel.cl", prog, optionString.c_str());
+		Kernel* stepReduceKernel = new Kernel(prog, "stepReduce");
+		clReleaseProgram(prog);
+
+		PlatformUtil::buildProgramFromFile("finalCalcKernel.cl", prog, optionString.c_str());
+		Kernel* finalCalcKernel = new Kernel(prog, "finalCalc");
+		clReleaseProgram(prog);
+
+		PlatformUtil::buildProgramFromFile("finalReduceKernel.cl", prog, optionString.c_str());
+		Kernel* finalReduceKernel = new Kernel(prog, "finalReduce");
 		clReleaseProgram(prog);
 
 		int dataSize = data.getSize();
-		Buffer dataBuffer(data.getValueCount() * data.getSize() * sizeof(double));
+		Buffer dataBuffer(data.getValueCount() * data.getSize() * sizeof(double), CL_MEM_READ_ONLY);
 
 		int dataBuffIdx = 0;
 		for (MultilabelInstance inst : data.getInstances())
 		{
-			memcpy(static_cast<double*>(dataBuffer.data) + dataBuffIdx, inst.getData().data(), inst.getValueCount() * sizeof(double));
+			memcpy(static_cast<double*>(dataBuffer.getData()) + dataBuffIdx, inst.getData().data(), inst.getValueCount() * sizeof(double));
 			dataBuffIdx += inst.getValueCount();
 		}
 
-		Buffer resultBuffer(dataSize * data.getLabelCount() * sizeof(double));
-		Buffer voteBuffer(dataSize * data.getLabelCount() * sizeof(int));
+		Buffer resultBuffer(dataSize * data.getLabelCount() * sizeof(OutputAtom), CL_MEM_WRITE_ONLY);
+		Buffer labelBuffer(data.getSize() * data.getLabelCount() * ensembleSize * sizeof(OutputAtom), CL_MEM_WRITE_ONLY);
 
-		int numValues = data.getValueCount();
-		
-		Buffer labelBuffer(data.getSize() * data.getLabelCount() * ensembleSize * sizeof(double));
+		int stepIntermediateBufferSize[3] = { data.getSize(), ensembleSize, NUM_WG_TREES_SC };
+		int stepIntermediateBufferTotalSize = stepIntermediateBufferSize[0] * stepIntermediateBufferSize[1] * stepIntermediateBufferSize[2];
 
-		int localBufferSize[3] = { instancesPerGroup, chainsPerGroup, treesPerGroup };
-		int localBufferTotalSize = localBufferSize[0] * localBufferSize[1] * localBufferSize[2];
+		int finalIntermediateBufferSize[3] = { data.getSize(), data.getLabelCount(), NUM_WG_CHAINS_FC };
+		int finalIntermediateBufferTotalSize = finalIntermediateBufferSize[0] * finalIntermediateBufferSize[1] * finalIntermediateBufferSize[2];
 
-		classifyKernel->SetInputArg(0, nodeValueBuffer.data, nodeValueBuffer.size);
-		classifyKernel->SetInputArg(1, nodeIndexBuffer.data, nodeIndexBuffer.size);
-		classifyKernel->SetInputArg(2, labelOrderBuffer.data, labelOrderBuffer.size);
-		classifyKernel->SetInputArg(3, maxLevel);
-		classifyKernel->SetInputArg(4, forestSize);
-		classifyKernel->SetInputArg(5, chainSize);
-		classifyKernel->SetInputArg(6, ensembleSize);
-		classifyKernel->SetInputArg(7, dataBuffer.data, dataBuffer.size);
-		classifyKernel->SetInputArg(8, numValues);
-		classifyKernel->SetOutputArg(10, resultBuffer.data, resultBuffer.size);
-		classifyKernel->SetOutputArg(11, voteBuffer.data, voteBuffer.size);
-		classifyKernel->SetInputArg(12, labelBuffer.data, labelBuffer.size);
+		int localBufferSize_SC = NUM_WI_INSTANCES_SC * NUM_WI_CHAINS_SC * NUM_WI_TREES_SC;
+		int localBufferSize_SR = NUM_WI_INSTANCES_SR * NUM_WI_CHAINS_SR * NUM_WI_TREES_SR;
+		int localBufferSize_FC = NUM_WI_INSTANCES_FC * NUM_WI_LABELS_FC * NUM_WI_CHAINS_FC;
+		int localBufferSize_FR = NUM_WI_INSTANCES_FR * NUM_WI_LABELS_FR * NUM_WI_CHAINS_FR;
 
-		classifyKernel->setDim(3);
-		classifyKernel->setGlobalSize(data.getSize() / instancesPerThread, ensembleSize / chainsPerThread, forestSize / treesPerThread);
-		classifyKernel->setLocalSize(1, ensembleSize / chainsPerThread, forestSize / treesPerThread);
+		Buffer stepIntermediateBuffer(stepIntermediateBufferTotalSize * sizeof(OutputAtom), CL_MEM_READ_WRITE);
+		Buffer finalIntermediateBuffer(finalIntermediateBufferTotalSize * sizeof(OutputAtom), CL_MEM_READ_WRITE);
 
-		classifyKernel->execute();
+		stepCalcKernel->SetArg(0, nodeValueBuffer, true);
+		stepCalcKernel->SetArg(1, nodeIndexBuffer, true);
+		stepCalcKernel->SetArg(2, dataBuffer, true);
+		stepCalcKernel->SetArg(4, labelBuffer, true);
+		stepCalcKernel->SetLocalArg(5, localBufferSize_SC * sizeof(OutputAtom));
+		stepCalcKernel->SetArg(6, stepIntermediateBuffer);
+
+		stepCalcKernel->setDim(3);
+		stepCalcKernel->setGlobalSize(NUM_WG_INSTANCES_SC * NUM_WI_INSTANCES_SC, NUM_WG_CHAINS_SC * NUM_WI_CHAINS_SC, NUM_WG_TREES_SC * NUM_WI_TREES_SC);
+		stepCalcKernel->setLocalSize(NUM_WI_INSTANCES_SC, NUM_WI_CHAINS_SC, NUM_WI_TREES_SC);
 	
+		stepReduceKernel->SetArg(0, stepIntermediateBuffer);
+		stepReduceKernel->SetArg(1, labelBuffer);
+		stepReduceKernel->SetArg(2, labelOrderBuffer, true);
+		stepReduceKernel->SetLocalArg(3, localBufferSize_SR * sizeof(OutputAtom));
+
+		stepReduceKernel->setDim(3);
+		stepReduceKernel->setGlobalSize(NUM_WG_INSTANCES_SR * NUM_WI_INSTANCES_SR, NUM_WG_CHAINS_SR * NUM_WI_CHAINS_SR, NUM_WI_TREES_SR);
+		stepReduceKernel->setLocalSize(NUM_WI_INSTANCES_SR, NUM_WI_CHAINS_SR, NUM_WI_TREES_SR);
+
+		finalCalcKernel->SetArg(0, labelBuffer);
+		finalCalcKernel->SetLocalArg(1, localBufferSize_FC * sizeof(OutputAtom));
+		finalCalcKernel->SetArg(2, finalIntermediateBuffer);
+
+		finalCalcKernel->setDim(3);
+		finalCalcKernel->setGlobalSize(NUM_WG_INSTANCES_FC * NUM_WI_INSTANCES_FC, NUM_WG_LABELS_FC * NUM_WI_LABELS_FC, NUM_WG_CHAINS_FC * NUM_WI_CHAINS_FC);
+		finalCalcKernel->setLocalSize(NUM_WI_INSTANCES_FC, NUM_WI_LABELS_FC, NUM_WI_CHAINS_FC);
+
+		finalReduceKernel->SetArg(0, finalIntermediateBuffer);
+		finalReduceKernel->SetArg(1, resultBuffer);
+		finalReduceKernel->SetLocalArg(2, localBufferSize_FR * sizeof(OutputAtom));
+
+		finalReduceKernel->setDim(3);
+		finalReduceKernel->setGlobalSize(NUM_WG_INSTANCES_FR * NUM_WI_INSTANCES_FR, NUM_WG_LABELS_FR * NUM_WI_LABELS_FR, NUM_WI_CHAINS_FR);
+		finalReduceKernel->setLocalSize(NUM_WI_INSTANCES_FR, NUM_WI_LABELS_FR, NUM_WI_CHAINS_FR);
+
+		double SCTime = 0.0, SRTime = 0.0, FCTime = 0.0, FRTime = 0.0;
 		for (int chainIndex = 0; chainIndex < chainSize; ++chainIndex)
 		{
-			classifyKernel->SetInputArg(9, chainIndex);
-			classifyKernel->SetInputArg(13, NULL, localBufferTotalSize * sizeof(double));
-			classifyKernel->SetInputArg(14, NULL, localBufferTotalSize * sizeof(int));
-			classifyKernel->SetInputArg(15, localBufferSize, sizeof(int) * 3);
+			stepCalcKernel->SetArg(3, chainIndex);
+			stepReduceKernel->SetArg(4, chainIndex);
+			stepCalcKernel->execute();
+			stepReduceKernel->execute();
+			SCTime += stepCalcKernel->getRuntime();
+			SRTime += stepReduceKernel->getRuntime();
 		}
-		std::cout << "Classification kernel took " << classifyKernel->getRuntime() << " ms." << std::endl;
-		
-		classifyKernel->readResult(voteBuffer.memObj, voteBuffer.size, voteBuffer.data);
-		classifyKernel->readResult(resultBuffer.memObj, resultBuffer.size, resultBuffer.data);
-		validateResults(data, voteBuffer, resultBuffer);
 
+		//labelBuffer.read();
+
+		//for(int i = 0; i < 236; ++i)
+		//	for (int l = 0; l < 3; ++l)
+		//	{
+		//		double newLabel = 0.0;
+		//		for (int c = 0; c < 8; ++c)
+		//		{
+		//			newLabel += static_cast<OutputAtom*>(labelBuffer.getData())[i * 24 + l * 8 + c].result;
+		//		}
+
+		//		if (oldLabels[i * 3 + l] == (newLabel > 0 ? 1 : 0) && oldResults[i * 3 + l] == newLabel)
+		//			continue;
+
+		//		std::cout << "OLD: " << oldLabels[i * 3 + l] << "  NEW: " << (newLabel > 0 ? 1 : 0) << std::endl;
+		//		std::cout << "OLD: " << oldResults[i * 3 + l] << "  NEW: " << newLabel << std::endl;
+		//		for (int c = 0; c < 8; ++c)
+		//		{
+		//			std::cout << "\t\t" << static_cast<OutputAtom*>(labelBuffer.getData())[i * 24 + l * 8 + c].result << std::endl;
+		//		}
+		//		std::cout << "---------------------------------" << std::endl;
+		//	}
+
+		finalCalcKernel->execute();
+		finalReduceKernel->execute();
+
+		FCTime = finalCalcKernel->getRuntime();
+		FRTime = finalReduceKernel->getRuntime();
+		newTime = SCTime + SRTime + FCTime + FRTime;
+		std::cout << "Classification kernel took " << newTime << " ms."
+			<< "\n\tstepCalc: " << SCTime 
+			<< "\n\tstepReduce: " << SRTime
+			<< "\n\tfinalCalc: " << FCTime
+			<< "\n\tfinalReduce: " << FRTime
+			<< std::endl;
+		
+		resultBuffer.read();
+		validateResults(data, resultBuffer);
+
+		dataBuffer.clear();
 		resultBuffer.clear();
-		voteBuffer.clear();
+		labelBuffer.clear();
+		stepIntermediateBuffer.clear();
+		finalIntermediateBuffer.clear();
+
+		delete stepCalcKernel;
+		delete stepReduceKernel;
+		delete finalCalcKernel;
+		delete finalReduceKernel;
 	}
 
 	void runClassifyOld(ECCData& data, std::vector<double>& values, std::vector<int>& votes)
@@ -414,54 +503,79 @@ private:
 		std::cout << std::endl << "--- OLD CLASSIFICATION ---" << std::endl;
 		cl_program prog;
 		PlatformUtil::buildProgramFromFile("OldKernels/eccClassify.cl", prog);
-		classifyKernel = new Kernel(prog, "eccClassify");
+		Kernel* classifyKernel = new Kernel(prog, "eccClassify");
 		clReleaseProgram(prog);
 
 		int dataSize = data.getSize();
-		Buffer dataBuffer(data.getValueCount() * data.getSize() * sizeof(double));
+		Buffer dataBuffer(data.getValueCount() * data.getSize() * sizeof(double), CL_MEM_READ_WRITE);
 
 		int dataBuffIdx = 0;
 		for (MultilabelInstance inst : data.getInstances())
 		{
-			memcpy(static_cast<double*>(dataBuffer.data) + dataBuffIdx, inst.getData().data(), inst.getValueCount() * sizeof(double));
+			memcpy(static_cast<double*>(dataBuffer.getData()) + dataBuffIdx, inst.getData().data(), inst.getValueCount() * sizeof(double));
 			dataBuffIdx += inst.getValueCount();
 		}
 
-		Buffer resultBuffer(dataSize * data.getLabelCount() * sizeof(double));
-		Buffer voteBuffer(dataSize * data.getLabelCount() * sizeof(int));
+		Buffer resultBuffer(dataSize * data.getLabelCount() * sizeof(double), CL_MEM_READ_WRITE);
+		Buffer voteBuffer(dataSize * data.getLabelCount() * sizeof(int), CL_MEM_WRITE_ONLY);
 
 		int numValues = data.getValueCount();
 
-		classifyKernel->SetInputArg(0, nodeValueBuffer.data, nodeValueBuffer.size);
-		classifyKernel->SetInputArg(1, nodeIndexBuffer.data, nodeIndexBuffer.size);
-		classifyKernel->SetInputArg(2, labelOrderBuffer.data, labelOrderBuffer.size);
-		classifyKernel->SetInputArg(3, maxLevel);
-		classifyKernel->SetInputArg(4, forestSize);
-		classifyKernel->SetInputArg(5, chainSize);
-		classifyKernel->SetInputArg(6, ensembleSize);
-		classifyKernel->SetInputArg(7, dataBuffer.data, dataBuffer.size);
-		classifyKernel->SetInputArg(8, numValues);
-		resultBuffer.memObj = classifyKernel->SetOutputArg(9, resultBuffer.data, resultBuffer.size);
-		voteBuffer.memObj = classifyKernel->SetOutputArg(10, voteBuffer.data, voteBuffer.size);
+		ConstantBuffer maxLevelBuffer(maxLevel);
+		ConstantBuffer forestSizeBuffer(forestSize);
+		ConstantBuffer chainSizeBuffer(chainSize);
+		ConstantBuffer ensembleSizeBuffer(ensembleSize);
+		ConstantBuffer numValuesBuffer(numValues);
+
+		classifyKernel->SetArg(0, nodeValueBuffer, true);
+		classifyKernel->SetArg(1, nodeIndexBuffer, true);
+		classifyKernel->SetArg(2, labelOrderBuffer, true);
+		classifyKernel->SetArg(3, maxLevelBuffer, true);
+		classifyKernel->SetArg(4, forestSizeBuffer, true);
+		classifyKernel->SetArg(5, chainSizeBuffer, true);
+		classifyKernel->SetArg(6, ensembleSizeBuffer, true);
+		classifyKernel->SetArg(7, dataBuffer, true);
+		classifyKernel->SetArg(8, numValuesBuffer, true);
+		classifyKernel->SetArg(9, resultBuffer);
+		classifyKernel->SetArg(10, voteBuffer);
 
 		classifyKernel->setDim(1);
 		classifyKernel->setGlobalSize(data.getSize());
 		classifyKernel->setLocalSize(1);
 
 		classifyKernel->execute();
-		std::cout << "Classification kernel took " << classifyKernel->getRuntime() << " ms." << std::endl;
+		oldTime = classifyKernel->getRuntime();
+		std::cout << "Classification kernel took " << oldTime << " ms." << std::endl;
 
 		votesCmp = new int[dataSize * data.getLabelCount()];
 		resultCmp = new double[dataSize * data.getLabelCount()];
 
-		classifyKernel->readResult(resultBuffer.memObj, resultBuffer.size, resultBuffer.data);
-		classifyKernel->readResult(voteBuffer.memObj, voteBuffer.size, voteBuffer.data);
+		dataBuffer.read();
+		for (int i = 0; i < 236; ++i)
+			for(int l = 0; l < data.getLabelCount(); ++l)
+				oldLabels[i*3+l] = static_cast<double*>(dataBuffer.getData())[data.getValueCount()*i+data.getAttribCount()+l];
 
-		memcpy(votesCmp, voteBuffer.data, voteBuffer.size);
-		memcpy(resultCmp, resultBuffer.data, resultBuffer.size);
+		resultBuffer.read();
+		for (int i = 0; i < 236; ++i)
+			for (int l = 0; l < data.getLabelCount(); ++l)
+				oldResults[i * 3 + l] = static_cast<double*>(resultBuffer.getData())[3*i + l];
 
+
+		voteBuffer.read();
+
+		memcpy(votesCmp, voteBuffer.getData(), voteBuffer.getSize());
+		memcpy(resultCmp, resultBuffer.getData(), resultBuffer.getSize());
+
+		dataBuffer.clear();
 		resultBuffer.clear();
 		voteBuffer.clear();
+		maxLevelBuffer.clear();
+		forestSizeBuffer.clear();
+		chainSizeBuffer.clear();
+		ensembleSizeBuffer.clear();
+		numValuesBuffer.clear();
+
+		delete classifyKernel;
 	}
 
 public:
@@ -470,8 +584,6 @@ public:
 		nodeIndexBuffer.clear();
 		nodeValueBuffer.clear();
 		labelOrderBuffer.clear();
-		delete classifyKernel;
-		delete buildKernel;
 	}
 };
 

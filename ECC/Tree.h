@@ -1,7 +1,7 @@
 #pragma once
 #include <vector>
 
-class RTree
+class Tree
 {
 private:
 	const int maxLevel;
@@ -10,7 +10,7 @@ private:
 	const int label;
 	std::vector<int> excludeValues;
 public:
-	RTree(int _numValues, int _maxLevel, int _label, std::vector<int> _excludeLabelIndices);
+	Tree(int _numValues, int _maxLevel, int _label, std::vector<int> _excludeLabelIndices);
 	int getLabel();
 	const std::vector<int>& getExcludedValues();
 	int getMaxLevel();
