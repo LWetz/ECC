@@ -5,3 +5,6 @@ ECC.*
 ./.vs/*
 ./ECC/Debug/*
 ./ECC/x64/*
+./ECC/ECC.vcxproj
+./ECC/ECC.vcxproj.filters
+./ECC/ECC.vcxproj.user
