@@ -232,37 +232,9 @@ public:
 					static_cast<int*>(seedsBuffer.getData())[seed] = rnd;
 				}
 
-				//std::ofstream ofs("cmp2.txt");
-
-				//ofs << gidMultiplier << "\n";
-				//printBuffer<int>(seedsBuffer, ofs);
-				//printBuffer<double>(dataBuffer, ofs);
-				//ofs << dataSize << "\n";
-				//ofs << subSetSize << "\n";
-				//printBuffer<int>(labelOrderBuffer, ofs);
-				//ofs << numValues << "\n";
-				//ofs << numAttributes << "\n";
-				//ofs << maxAttributes << "\n";
-				//ofs << maxLevel << "\n";
-				//ofs << chainSize << "\n";
-				//ofs << maxSplits << "\n";
-				//ofs << forestSize << "\n";
-				//printBuffer<int>(instancesBuffer, ofs);
-				//printBuffer<int>(instancesNextBuffer, ofs);
-				//printBuffer<int>(instancesLengthBuffer, ofs);
-				//printBuffer<int>(instancesNextLengthBuffer, ofs);
-				//printBuffer<double>(tmpNodeValueBuffer, ofs);
-				//printBuffer<int>(tmpNodeIndexBuffer, ofs);
-				//printBuffer<int>(voteBuffer, ofs);
-				//ofs.close();
-
 				buildKernel->execute();
 				totalTime += buildKernel->getRuntime();
 
-				//std::ofstream ofs("cmp2.txt");
-
-				//printBuffer<double>(tmpNodeValueBuffer, ofs);
-				//printBuffer<int>(tmpNodeIndexBuffer, ofs);
 				tmpNodeIndexBuffer.read();
 				tmpNodeValueBuffer.read();
 
@@ -299,58 +271,14 @@ public:
 		}
 	}
 
-	void runClassify(ECCData& data, std::vector<double>& values, std::vector<int>& votes)
-	{
-		runClassifyOld(data, values, votes);
-		runClassifyNew(data, values, votes);
-		std::cout << "Speedup: " << oldTime / newTime << std::endl;
-	}
-
 private:
-	int* votesCmp;
-	double* resultCmp;
-
 	typedef struct OutputAtom
 	{
 		double result;
 		int vote;
 	}OutputAtom;
 
-	void validateResults(const ECCData& data, const Buffer& resultBuffer)
-	{
-		int errors = 0;
-		for (int inst = 0; inst < data.getSize(); ++inst)
-		{
-			for (int label = 0; label < data.getLabelCount(); ++label)
-			{
-				int idx = (inst * data.getLabelCount() + label);
-				int vote = static_cast<OutputAtom*>(resultBuffer.getData())[idx].vote;
-				double result = static_cast<OutputAtom*>(resultBuffer.getData())[idx].result;
-
-				bool err = false;
-				if (abs(vote - votesCmp[inst * data.getLabelCount() + label]) > 1e-06)
-				{
-					err = true;
-				}
-
-				if (abs(result - resultCmp[inst * data.getLabelCount() + label]) > 1e-06)
-				{
-					err = true;
-				}
-
-				if (err) { ++errors; std::cout << "ERROR:"; }
-
-				std::cout << "(inst: " << inst << ", label:" << label << ") NEW:(" << result << ", " << vote << ") OLD:(" << resultCmp[inst * data.getLabelCount() + label] << ", " << votesCmp[inst * data.getLabelCount() + label] << ")" << std::endl;
-			}
-		}
-
-		if (errors)
-			std::cout << "Results not correct! errors: " << errors << std::endl;
-	}
-
-	std::array<double, 3*236> oldLabels;
-	std::array<double, 3*236> oldResults;
-
+public:
 	void runClassifyNew(ECCData& data, std::vector<double>& values, std::vector<int>& votes)
 	{
 		std::cout << std::endl << "--- NEW CLASSIFICATION ---" << std::endl;
@@ -446,30 +374,6 @@ private:
 			SCTime += stepCalcKernel->getRuntime();
 			SRTime += stepReduceKernel->getRuntime();
 		}
-
-		//labelBuffer.read();
-
-		//for(int i = 0; i < 236; ++i)
-		//	for (int l = 0; l < 3; ++l)
-		//	{
-		//		double newLabel = 0.0;
-		//		for (int c = 0; c < 8; ++c)
-		//		{
-		//			newLabel += static_cast<OutputAtom*>(labelBuffer.getData())[i * 24 + l * 8 + c].result;
-		//		}
-
-		//		if (oldLabels[i * 3 + l] == (newLabel > 0 ? 1 : 0) && oldResults[i * 3 + l] == newLabel)
-		//			continue;
-
-		//		std::cout << "OLD: " << oldLabels[i * 3 + l] << "  NEW: " << (newLabel > 0 ? 1 : 0) << std::endl;
-		//		std::cout << "OLD: " << oldResults[i * 3 + l] << "  NEW: " << newLabel << std::endl;
-		//		for (int c = 0; c < 8; ++c)
-		//		{
-		//			std::cout << "\t\t" << static_cast<OutputAtom*>(labelBuffer.getData())[i * 24 + l * 8 + c].result << std::endl;
-		//		}
-		//		std::cout << "---------------------------------" << std::endl;
-		//	}
-
 		finalCalcKernel->execute();
 		finalReduceKernel->execute();
 
@@ -484,7 +388,12 @@ private:
 			<< std::endl;
 		
 		resultBuffer.read();
-		validateResults(data, resultBuffer);
+
+		for (int n = 0; n < data.getLabelCount()*data.getSize(); ++n)
+		{
+			values.push_back(static_cast<OutputAtom*>(resultBuffer.getData())[n].result);
+			votes.push_back(static_cast<OutputAtom*>(resultBuffer.getData())[n].vote);
+		}
 
 		dataBuffer.clear();
 		resultBuffer.clear();
@@ -545,26 +454,17 @@ private:
 
 		classifyKernel->execute();
 		oldTime = classifyKernel->getRuntime();
+		resultBuffer.read();
+		voteBuffer.read();
 		std::cout << "Classification kernel took " << oldTime << " ms." << std::endl;
 
-		votesCmp = new int[dataSize * data.getLabelCount()];
-		resultCmp = new double[dataSize * data.getLabelCount()];
-
-		dataBuffer.read();
-		for (int i = 0; i < 236; ++i)
-			for(int l = 0; l < data.getLabelCount(); ++l)
-				oldLabels[i*3+l] = static_cast<double*>(dataBuffer.getData())[data.getValueCount()*i+data.getAttribCount()+l];
-
-		resultBuffer.read();
-		for (int i = 0; i < 236; ++i)
-			for (int l = 0; l < data.getLabelCount(); ++l)
-				oldResults[i * 3 + l] = static_cast<double*>(resultBuffer.getData())[3*i + l];
-
+		for (int n = 0; n < data.getLabelCount()*data.getSize(); ++n)
+		{
+			values.push_back(static_cast<double*>(resultBuffer.getData())[n]);
+			votes.push_back(static_cast<int*>(voteBuffer.getData())[n]);
+		}
 
 		voteBuffer.read();
-
-		memcpy(votesCmp, voteBuffer.getData(), voteBuffer.getSize());
-		memcpy(resultCmp, resultBuffer.getData(), resultBuffer.getSize());
 
 		dataBuffer.clear();
 		resultBuffer.clear();
@@ -578,7 +478,11 @@ private:
 		delete classifyKernel;
 	}
 
-public:
+	double getSpeedup()
+	{
+		return oldTime / newTime;
+	}
+
 	~ECCExecutor()
 	{
 		nodeIndexBuffer.clear();

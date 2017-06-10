@@ -65,7 +65,7 @@
 #endif
 
 #ifndef NUM_WI_LABELS_FC
-	#define NUM_WI_LABELS_FC	3
+	#define NUM_WI_LABELS_FC	7
 #endif
 
 #ifndef NUM_WI_INSTANCES_FC
@@ -77,7 +77,7 @@
 #endif
 
 #ifndef NUM_WI_LABELS_FR
-	#define NUM_WI_LABELS_FR	3
+	#define NUM_WI_LABELS_FR	7
 #endif
 
 #ifndef NUM_WI_INSTANCES_FR

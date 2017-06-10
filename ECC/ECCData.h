@@ -1,6 +1,6 @@
 #pragma once
-#include "ARFFparser\arff_parser.h"
-#include "ARFFparser\arff_data.h"
+#include "ARFFparser/arff_parser.h"
+#include "ARFFparser/arff_data.h"
 #include "Util.h"
 
 class MultilabelInstance

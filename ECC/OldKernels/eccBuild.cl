@@ -113,7 +113,7 @@ double informationGain(
             lEntropy = entropy(lTotal, lPositives, lNegatives);
         }
 
-		return totalEntropy - (gProb * gEntropy + lProb * lEntropy);
+        return totalEntropy - (gProb * gEntropy + lProb * lEntropy);
 }
 
 splitStruct findSplit(
@@ -268,7 +268,7 @@ void train(
         vote = -1;
     }
 
-	nodeValues[root + nodeIndex] += vote;
+    nodeValues[root + nodeIndex] += vote;
 
     int numLeaves = pown(2.f, maxLevel);
     numVotes[gid * numLeaves + nodeIndex - (numLeaves - 1)] += 1;

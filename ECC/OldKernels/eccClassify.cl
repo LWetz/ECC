@@ -69,49 +69,49 @@ kernel void eccClassify(
     int forestSize = *pForestSize;
     int numAttributes = numValues - numChains;
 
-	for(int ensembleIndex = 0; ensembleIndex < numEnsembles; ++ensembleIndex)
-	{
-		for(int chainIndex = 0; chainIndex < numChains; ++chainIndex)
-		{
-			double chainRes = 0.0;
-			int label = labelOrders[numChains * ensembleIndex + chainIndex];
-			int resultIndex = (gid * numChains) + label;
+    for(int ensembleIndex = 0; ensembleIndex < numEnsembles; ++ensembleIndex)
+    {
+        for(int chainIndex = 0; chainIndex < numChains; ++chainIndex)
+        {
 
-			for(int treeIndex = 0; treeIndex < forestSize; ++treeIndex)
-			{
-				double value = traverse(
-					data, 
-					nodeValues, 
-					forestSize, 
-					maxLevel, 
-					nodesPerTree, 
-					attributeIndices, 
-					gid, 
-					numValues, 
-					treeIndex,
-					chainIndex,
-					numChains,
-					ensembleIndex
-					);
+            int label = labelOrders[numChains * ensembleIndex + chainIndex];
+            int resultIndex = (gid * numChains) + label;
 
-				chainRes += value;
+            for(int treeIndex = 0; treeIndex < forestSize; ++treeIndex)
+            {
+                double value = traverse(
+                    data, 
+                    nodeValues, 
+                    forestSize, 
+                    maxLevel, 
+                    nodesPerTree, 
+                    attributeIndices, 
+                    gid, 
+                    numValues, 
+                    treeIndex,
+                    chainIndex,
+                    numChains,
+                    ensembleIndex
+                    );
+
+                results[resultIndex] += value;
                 
-				if(value != 0)
-				{
-					++votes[resultIndex];
-				}
-			}
+                if(value != 0)
+                {
+                    ++votes[resultIndex];
+                }
+            }
 
-			if(chainRes > 0)
-			{
-				data[numValues * gid + numAttributes + label] = 1;
-			}
-			else
-			{
-				data[numValues * gid + numAttributes + label] = 0;
-			}
+            if(results[resultIndex] > 0)
+            {
+                data[numValues * gid + numAttributes + label] = 1;
+            }
+            else
+            {
+                data[numValues * gid + numAttributes + label] = 0;
+            }
 
-			results[resultIndex] += chainRes;
-		}
-	}
+        }
+    }
+
 }

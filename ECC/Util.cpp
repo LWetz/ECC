@@ -55,7 +55,7 @@ namespace Util
 	Random makeRand()
 	{
 		Random rnd;
-		rnd.setSeed(1337);
+		rnd.setSeed(std::chrono::system_clock::now().time_since_epoch().count());
 		return rnd;
 	}
 
