@@ -6,7 +6,7 @@
 class Buffer
 {
 private:
-	void* data;
+	uint8_t* data;
 	size_t size;
 	cl_mem memObj;
 	cl_mem_flags flags;
@@ -48,7 +48,7 @@ public:
 
 	void* getData() const
 	{
-		return data;
+		return (void*)data;
 	}
 
 	size_t getSize() const
