@@ -1,6 +1,6 @@
 #include "ClassifierChain.h"
 
-ClassifierChain::ClassifierChain(int _numValues, std::vector<int> &_orderedLabels, int _maxLevel, int _forestSize)
+ClassifierChain::ClassifierChain(int _numValues, std::vector<int> _orderedLabels, int _maxLevel, int _forestSize)
 	: maxLevel(_maxLevel), forestSize(_forestSize), chainSize(_orderedLabels.size()), orderedLabels(_orderedLabels),
 	forests(), treeSize(pow(2, maxLevel + 1) - 1), totalSize(forestSize * treeSize * chainSize)
 {
@@ -23,7 +23,7 @@ const std::vector<Forest>& ClassifierChain::getForests()
 	return forests;
 }
 
-const std::vector<int>& ClassifierChain::getLabelOrder()
+const std::vector<int> ClassifierChain::getLabelOrder()
 {
 	return orderedLabels;
 }

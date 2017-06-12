@@ -5,6 +5,7 @@
 #include<iostream>
 #include<string>
 #include<chrono>
+#include<algorithm>
 
 namespace Util
 {
