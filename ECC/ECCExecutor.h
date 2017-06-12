@@ -7,6 +7,7 @@
 #include"ECCData.h"
 #include "Kernel.h"
 #include <chrono>
+#include <climits>
 #include "Util.h"
 #include "Parameters.h"
 
