@@ -1,6 +1,7 @@
 #pragma once
 
 #include "PlatformUtil.h"
+#include <cstring>
 
 class Buffer
 {
