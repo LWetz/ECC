@@ -34,7 +34,7 @@ int main(int argc, char* argv[])
 		double avgSpeed = 0.0;
 		double avgAccOld = 0.0;
 		double avgAccNew = 0.0;
-		int iterations = 100;
+		int iterations = 1;
 		for (int i = 0; i < iterations; i++)
 		{
 			std::vector<MultilabelInstance> inputCopy = data.getInstances();
