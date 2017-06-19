@@ -412,7 +412,7 @@ public:
 	{
 		std::cout << std::endl << "--- OLD CLASSIFICATION ---" << std::endl;
 		cl_program prog;
-		PlatformUtil::buildProgramFromFile("OldKernels/eccClassify.cl", prog);
+		PlatformUtil::buildProgramFromFile("OldKernels/eccClassify_fix.cl", prog);
 		Kernel* classifyKernel = new Kernel(prog, "eccClassify");
 		clReleaseProgram(prog);
 
@@ -446,15 +446,17 @@ public:
 		classifyKernel->SetArg(6, ensembleSizeBuffer, true);
 		classifyKernel->SetArg(7, dataBuffer, true);
 		classifyKernel->SetArg(8, numValuesBuffer, true);
-		classifyKernel->SetArg(9, resultBuffer);
-		classifyKernel->SetArg(10, voteBuffer);
+		classifyKernel->SetArg(9, resultBuffer, true);
+		classifyKernel->SetArg(10, voteBuffer, true);
 
 		classifyKernel->setDim(1);
 		classifyKernel->setGlobalSize(data.getSize());
 		classifyKernel->setLocalSize(1);
 
 		classifyKernel->execute();
+
 		oldTime = classifyKernel->getRuntime();
+               
 		resultBuffer.read();
 		voteBuffer.read();
 		std::cout << "Classification kernel took " << oldTime << " ms." << std::endl;
