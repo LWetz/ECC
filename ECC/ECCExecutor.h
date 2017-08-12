@@ -264,11 +264,11 @@ public:
 	template<typename T>
 	void printBuffer(Buffer buff, std::ofstream& ofs)
 	{
-		int len = buff.size / sizeof(T);
+		int len = buff.getSize() / sizeof(T);
 
 		for (int n = 0; n < len; ++n)
 		{
-			ofs << static_cast<T*>(buff.data)[n] << "\n";
+			ofs << static_cast<T*>(buff.getData())[n] << "\n";
 		}
 	}
 
@@ -280,11 +280,15 @@ private:
 	}OutputAtom;
 
 public:
-	void runClassifyNew(ECCData& data, std::vector<double>& values, std::vector<int>& votes)
+	void runClassifyNew(ECCData& data, std::vector<double>& values, std::vector<int>& votes, std::map<std::string, int>& params, bool measureStep = false)
 	{
 		std::cout << std::endl << "--- NEW CLASSIFICATION ---" << std::endl;
-		int nodesPerTree = pow(2.0f, maxLevel + 1) - 1;
-		std::string optionString = buildOptionString(ensembleSize, data.getSize(), forestSize, data.getAttribCount(), data.getLabelCount(), maxLevel, nodesPerTree);
+		std::string optionString;
+		std::stringstream strstr;		
+		for (auto it=params.begin(); it!=params.end(); ++it)
+			strstr << "-D " << it->first << "=" << it->second;
+		optionString = strstr.str();
+
 		cl_program prog;
 		PlatformUtil::buildProgramFromFile("stepCalcKernel.cl", prog, optionString.c_str());
 		Kernel* stepCalcKernel = new Kernel(prog, "stepCalc");
@@ -315,16 +319,16 @@ public:
 		Buffer resultBuffer(dataSize * data.getLabelCount() * sizeof(OutputAtom), CL_MEM_WRITE_ONLY);
 		Buffer labelBuffer(data.getSize() * data.getLabelCount() * ensembleSize * sizeof(OutputAtom), CL_MEM_WRITE_ONLY);
 
-		int stepIntermediateBufferSize[3] = { data.getSize(), ensembleSize, NUM_WG_TREES_SC };
+		int stepIntermediateBufferSize[3] = { data.getSize(), ensembleSize, params["NUM_WG_TREES_SC"] };
 		int stepIntermediateBufferTotalSize = stepIntermediateBufferSize[0] * stepIntermediateBufferSize[1] * stepIntermediateBufferSize[2];
 
-		int finalIntermediateBufferSize[3] = { data.getSize(), data.getLabelCount(), NUM_WG_CHAINS_FC };
+		int finalIntermediateBufferSize[3] = { data.getSize(), data.getLabelCount(), params["NUM_WG_CHAINS_FC"] };
 		int finalIntermediateBufferTotalSize = finalIntermediateBufferSize[0] * finalIntermediateBufferSize[1] * finalIntermediateBufferSize[2];
 
-		int localBufferSize_SC = NUM_WI_INSTANCES_SC * NUM_WI_CHAINS_SC * NUM_WI_TREES_SC;
-		int localBufferSize_SR = NUM_WI_INSTANCES_SR * NUM_WI_CHAINS_SR * NUM_WI_TREES_SR;
-		int localBufferSize_FC = NUM_WI_INSTANCES_FC * NUM_WI_LABELS_FC * NUM_WI_CHAINS_FC;
-		int localBufferSize_FR = NUM_WI_INSTANCES_FR * NUM_WI_LABELS_FR * NUM_WI_CHAINS_FR;
+		int localBufferSize_SC = params["NUM_WI_INSTANCES_SC"] * params["NUM_WI_CHAINS_SC"] * params["NUM_WI_TREES_SC"];
+		int localBufferSize_SR = params["NUM_WI_INSTANCES_SR"] * params["NUM_WI_CHAINS_SR"] * params["NUM_WI_TREES_SR"];
+		int localBufferSize_FC = params["NUM_WI_INSTANCES_FC"] * params["NUM_WI_LABELS_FC"] * params["NUM_WI_CHAINS_FC"];
+		int localBufferSize_FR = params["NUM_WI_INSTANCES_FR"] * params["NUM_WI_LABELS_FR"] * params["NUM_WI_CHAINS_FR"];
 
 		Buffer stepIntermediateBuffer(stepIntermediateBufferTotalSize * sizeof(OutputAtom), CL_MEM_READ_WRITE);
 		Buffer finalIntermediateBuffer(finalIntermediateBufferTotalSize * sizeof(OutputAtom), CL_MEM_READ_WRITE);
@@ -337,8 +341,8 @@ public:
 		stepCalcKernel->SetArg(6, stepIntermediateBuffer);
 
 		stepCalcKernel->setDim(3);
-		stepCalcKernel->setGlobalSize(NUM_WG_INSTANCES_SC * NUM_WI_INSTANCES_SC, NUM_WG_CHAINS_SC * NUM_WI_CHAINS_SC, NUM_WG_TREES_SC * NUM_WI_TREES_SC);
-		stepCalcKernel->setLocalSize(NUM_WI_INSTANCES_SC, NUM_WI_CHAINS_SC, NUM_WI_TREES_SC);
+		stepCalcKernel->setGlobalSize(params["NUM_WG_INSTANCES_SC"] * params["NUM_WI_INSTANCES_SC"], params["NUM_WG_CHAINS_SC"] * params["NUM_WI_CHAINS_SC"], params["NUM_WG_TREES_SC"] * params["NUM_WI_TREES_SC"]);
+		stepCalcKernel->setLocalSize(params["NUM_WI_INSTANCES_SC"], params["NUM_WI_CHAINS_SC"], params["NUM_WI_TREES_SC"]);
 	
 		stepReduceKernel->SetArg(0, stepIntermediateBuffer);
 		stepReduceKernel->SetArg(1, labelBuffer);
@@ -346,16 +350,16 @@ public:
 		stepReduceKernel->SetLocalArg(3, localBufferSize_SR * sizeof(OutputAtom));
 
 		stepReduceKernel->setDim(3);
-		stepReduceKernel->setGlobalSize(NUM_WG_INSTANCES_SR * NUM_WI_INSTANCES_SR, NUM_WG_CHAINS_SR * NUM_WI_CHAINS_SR, NUM_WI_TREES_SR);
-		stepReduceKernel->setLocalSize(NUM_WI_INSTANCES_SR, NUM_WI_CHAINS_SR, NUM_WI_TREES_SR);
+		stepReduceKernel->setGlobalSize(params["NUM_WG_INSTANCES_SR"] * params["NUM_WI_INSTANCES_SR"], params["NUM_WG_CHAINS_SR"] * params["NUM_WI_CHAINS_SR"], params["NUM_WI_TREES_SR"]);
+		stepReduceKernel->setLocalSize(params["NUM_WI_INSTANCES_SR"], params["NUM_WI_CHAINS_SR"], params["NUM_WI_TREES_SR"]);
 
 		finalCalcKernel->SetArg(0, labelBuffer);
 		finalCalcKernel->SetLocalArg(1, localBufferSize_FC * sizeof(OutputAtom));
 		finalCalcKernel->SetArg(2, finalIntermediateBuffer);
 
 		finalCalcKernel->setDim(3);
-		finalCalcKernel->setGlobalSize(NUM_WG_INSTANCES_FC * NUM_WI_INSTANCES_FC, NUM_WG_LABELS_FC * NUM_WI_LABELS_FC, NUM_WG_CHAINS_FC * NUM_WI_CHAINS_FC);
-		finalCalcKernel->setLocalSize(NUM_WI_INSTANCES_FC, NUM_WI_LABELS_FC, NUM_WI_CHAINS_FC);
+		finalCalcKernel->setGlobalSize(params["NUM_WG_INSTANCES_FC"] * params["NUM_WI_INSTANCES_FC"], params["NUM_WG_LABELS_FC"] * params["NUM_WI_LABELS_FC"], params["NUM_WG_CHAINS_FC"] * params["NUM_WI_CHAINS_FC"]);
+		finalCalcKernel->setLocalSize(params["NUM_WI_INSTANCES_FC"], params["NUM_WI_LABELS_FC"], params["NUM_WI_CHAINS_FC"]);
 
 		finalReduceKernel->SetArg(0, finalIntermediateBuffer);
 		finalReduceKernel->SetArg(1, resultBuffer);
@@ -380,7 +384,7 @@ public:
 
 		FCTime = finalCalcKernel->getRuntime();
 		FRTime = finalReduceKernel->getRuntime();
-		newTime = SCTime + SRTime + FCTime + FRTime;
+		newTime = SCTime + SRTime + (measureStep ? 0 : (FCTime + FRTime));
 		std::cout << "Classification kernel took " << newTime << " ms."
 			<< "\n\tstepCalc: " << SCTime 
 			<< "\n\tstepReduce: " << SRTime
@@ -484,6 +488,11 @@ public:
 	double getSpeedup()
 	{
 		return oldTime / newTime;
+	}
+
+	double getNewTime()
+	{
+		return newTime;
 	}
 
 	~ECCExecutor()

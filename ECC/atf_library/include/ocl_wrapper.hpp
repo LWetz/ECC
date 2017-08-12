@@ -192,6 +192,7 @@ class device_info
       {
         std::string platform_name;
         platform.getInfo( CL_PLATFORM_VENDOR, &platform_name );
+	std::cout << platform_name << std::endl;
         if( platform_name.find( vendor_name ) != std::string::npos )
         {
           _platform = platform;

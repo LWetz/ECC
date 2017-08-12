@@ -26,9 +26,13 @@ public:
 		std::string buff;
 		buff.resize(256);
 
-		if (clGetPlatformIDs(sizeof(pids) / sizeof(pids[0]), pids, &numPlatforms) != CL_SUCCESS)
+		cl_int err = clGetPlatformIDs(sizeof(pids) / sizeof(pids[0]), pids, &numPlatforms);
+		if (err != CL_SUCCESS)
+		{
+			std::cout << "clGetPlatfromIDs: " << err << std::endl;
 			return false;
-		
+		}		
+
 		if (!numPlatforms)
 		{
 			std::cout << "No OpenCL platform found, aborting." << std::endl;

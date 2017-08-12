@@ -61,14 +61,14 @@ public:
 	template<typename ...DimSizes>
 	void setGlobalSize(DimSizes... gs)
 	{
-		size_t arr[] = { gs... };
+		int arr[] = { gs... };
 		setGlobalSize(std::vector<size_t>(arr, arr + sizeof...(gs)));
 	}
 
 	template<typename ...DimSizes>
 	void setLocalSize(DimSizes... ls)
 	{
-		size_t arr[] = { ls... };
+		int arr[] = { ls... };
 		setLocalSize(std::vector<size_t>(arr, arr + sizeof...(ls)));
 	}
 

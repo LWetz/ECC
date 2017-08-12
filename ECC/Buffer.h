@@ -38,6 +38,7 @@ public:
 
 	void read()
 	{
+		
 		PlatformUtil::checkError(clEnqueueReadBuffer(PlatformUtil::getCommandQueue(), memObj, CL_TRUE, 0, size, data, 0, NULL, NULL));
 	}
 

@@ -1,6 +1,6 @@
 #include "ECCExecutor.h"
 
-int main(int argc, char* argv[])
+int main2(int argc, char* argv[])
 {
 	//std::ifstream cmp1("\\\\X-THINK\\Users\\Public\\cmp.txt"), cmp2("cmp2.txt");
 
@@ -20,7 +20,7 @@ int main(int argc, char* argv[])
 
 	//return 0;
 
-	if(!PlatformUtil::init("NVIDIA", "GTX"))
+	if(!PlatformUtil::init("NVIDIA", "Tesla"))
 	{
 		PlatformUtil::deinit();
 		return -1;
@@ -75,7 +75,7 @@ int main(int argc, char* argv[])
 			std::vector<double> valOld, valNew;
 			std::vector<int> voteOld, voteNew;
 			eccex.runClassifyOld(data, valOld, voteOld);
-			eccex.runClassifyNew(data, valNew, voteNew);
+			//eccex.runClassifyNew(data, valNew, voteNew);
 			double speedup = eccex.getSpeedup();
 			std::cout << "Speedup: " << speedup << std::endl;
 			avgSpeed += speedup;
@@ -88,14 +88,18 @@ int main(int argc, char* argv[])
 				double maxVotes = 16.0 * 16.0;
 				for (int l = 0; l < iOrig.getNumLabels(); ++l)
 				{
+					bool noprint = true;
 					if (abs(valOld[i*numL + l] - valNew[i*numL + l]) > 0.001)
-						sameResult = false;
+						{noprint = sameResult = false;}
 					if (abs(voteOld[i*numL + l] - voteNew[i*numL + l]) > 0.001)
-						sameResult = false;
+						{noprint = sameResult = false;}
 					double predNew = valNew[i*numL + l] > 0 ? 1.0 : 0.0;
 					double predOld = valOld[i*numL + l] > 0 ? 1.0 : 0.0;
-					//std::cout << "Ref: " << iOrig.getData()[l + iOrig.getNumAttribs()]
-						//<< " | Old: " << predOld << " | New: " << predNew << std::endl;
+					
+					if(!noprint){
+						std::cout << "Ref: " << iOrig.getData()[l + iOrig.getNumAttribs()]
+						<< " | Old: " << predOld << " | New: " << predNew << std::endl;
+					}
 					if (predOld == iOrig.getData()[l + iOrig.getNumAttribs()])
 						hitsOld++;
 					if (predNew == iOrig.getData()[l + iOrig.getNumAttribs()])
