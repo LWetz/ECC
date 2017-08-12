@@ -72,7 +72,17 @@ kernel void finalReduce(	global OutputAtom* intermediateBuffer,
 			
 			barrier(CLK_LOCAL_MEM_FENCE);
 
-			for (int c = NUM_WI_CHAINS_FR >> 1; c > 0; c >>= 1)
+#if ( NUM_WI_CHAINS_FR & ( NUM_WI_CHAINS_FR - 1)) == 0
+			int c = NUM_WI_CHAINS_FR / 2;
+#else
+			int c = pow(2, floor(log2((float)NUM_WI_CHAINS_FR)));
+			if (i_wi_chain < c && i_wi_chain + c <  NUM_WI_CHAINS_FR) {
+				res_lcl[i_wi_chain] += res_lcl[i_wi_chain + c];
+			}
+			c /= 2;
+			barrier(CLK_LOCAL_MEM_FENCE);
+#endif
+			for (; c > 0; c /= 2)
 			{
 				if (i_wi_chain < c)
 				{

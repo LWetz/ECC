@@ -75,7 +75,17 @@ kernel void stepReduce(	global OutputAtom* intermediateBuffer,
 			
 			barrier(CLK_LOCAL_MEM_FENCE);
 
-			for (int t = NUM_WI_TREES_SR >> 1; t > 0; t >>= 1)
+#if ( NUM_WI_TREES_SR & ( NUM_WI_TREES_SR - 1)) == 0
+			int t = NUM_WI_TREES_SR / 2;
+#else
+			int t = pow(2, floor(log2((float)NUM_WI_TREES_SR)));
+			if (i_wi_tree < t && i_wi_tree + t <  NUM_WI_TREES_SR) {
+				res_lcl[i_wi_tree] += res_lcl[i_wi_tree + t];
+			}
+			t /= 2;
+			barrier(CLK_LOCAL_MEM_FENCE);
+#endif
+			for (; t > 0; t /= 2)
 			{
 				if (i_wi_tree < t)
 				{

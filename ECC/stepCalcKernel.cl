@@ -136,9 +136,17 @@ kernel void stepCalc(
 			int localIndex = LO_IDX(i_wi_instance, i_wi_chain, i_wi_tree);
 			localBuffer[localIndex] = res_prv;
 
+#if ( NUM_WI_TREES_SC & ( NUM_WI_TREES_SC - 1)) == 0
+			int t = NUM_WI_TREES_SC / 2;
+#else
+			int t = pow(2, floor(log2((float)NUM_WI_TREES_SC)));
+			if (i_wi_tree < t && i_wi_tree + t <  NUM_WI_TREES_SC) {
+				res_lcl[i_wi_tree] += res_lcl[i_wi_tree + t];
+			}
+			t /= 2;
 			barrier(CLK_LOCAL_MEM_FENCE);
-
-			for (int t = NUM_WI_TREES_SC >> 1; t > 0; t >>= 1)
+#endif
+			for (; t > 0; t /= 2)
 			{
 				if (i_wi_tree < t)
 				{
