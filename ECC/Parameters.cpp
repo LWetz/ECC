@@ -1,9 +1,8 @@
-#include "atf_library/atf.h"
 #include "ECCExecutor.h"
 
-#define NUM_CHAINS 0
-#define NUM_TREES 0
-#define MAX_LEVEL 0
+#define NUM_CHAINS 5
+#define NUM_TREES 8
+#define MAX_LEVEL 10
 
 ECCExecutor *ecc;
 ECCData *data;
@@ -20,6 +19,11 @@ std::map<std::string, int> extraParams;
 
 bool measureStep;
 
+namespace atf
+{
+	typedef std::map<std::string, size_t> configuration;
+}
+
 size_t tune(atf::configuration config){
 	std::map<std::string, int> params = extraParams;
 	for (auto it = extraParams.begin(); it!=extraParams.end(); ++it)
@@ -31,11 +35,11 @@ size_t tune(atf::configuration config){
 	params["NUM_WI_INSTANCES_SR"] = params["NUM_WI_INSTANCES_SC"];
 	params["NUM_WI_TREES_SR"] = params["NUM_WI_TREES_SC"];
 
-        params["NUM_WG_LABELS_FR"] = params["NUM_WG_LABELS_FC"];
-        params["NUM_WG_INSTANCES_FR"] = params["NUM_WG_INSTANCES_FC"];
-        params["NUM_WI_LABELS_FR"] = params["NUM_WI_LABELS_FC"];
-        params["NUM_WI_INSTANCES_FR"] = params["NUM_WI_INSTANCES_FC"];
-        params["NUM_WI_CHAINS_FR"] = params["NUM_WI_CHAINS_FC"]; 
+    params["NUM_WG_LABELS_FR"] = params["NUM_WG_LABELS_FC"];
+    params["NUM_WG_INSTANCES_FR"] = params["NUM_WG_INSTANCES_FC"];
+    params["NUM_WI_LABELS_FR"] = params["NUM_WI_LABELS_FC"];
+    params["NUM_WI_INSTANCES_FR"] = params["NUM_WI_INSTANCES_FC"];
+    params["NUM_WI_CHAINS_FR"] = params["NUM_WI_CHAINS_FC"]; 
 
 	ecc->runClassifyNew(*data, valNew, voteNew, params, measureStep);
 	bool sameResult = true;
@@ -60,45 +64,32 @@ size_t tune(atf::configuration config){
         }
 	std::cout << "Time: " << ecc->getNewTime() << std::endl;
 	std::cout << "Same Result: " << std::boolalpha << sameResult << std::endl;
-        std::cout << "Prediction Performance: Old " << (hitsOld / (evalCopy.size()*evalCopy[0].getNumLabels()))*100.0 << "% | New " << (hitsNew / (evalCopy.size()*evalCopy[0].getNumLabels()))*100.0 << "%" << std::endl;
+    std::cout << "Prediction Performance: Old " << (hitsOld / (evalCopy.size()*evalCopy[0].getNumLabels()))*100.0 << "% | New " << (hitsNew / (evalCopy.size()*evalCopy[0].getNumLabels()))*100.0 << "%" << std::endl;
 
 	return ecc->getNewTime();
 }
 
 void tuneClassify() {
-	auto tp_NUM_WG_CHAINS_SC = atf::tp("NUM_WG_CHAINS_SC", atf::interval(1,NUM_CHAINS),
-									   [&](auto tp_NUM_WG_CHAINS_SC){ return NUM_CHAINS  % tp_NUM_WG_CHAINS_SC == 0; });
-	auto tp_NUM_WG_INSTANCES_SC = atf::tp("NUM_WG_INSTANCES_SC", atf::interval(1,numInstances),
-										  [&](auto tp_NUM_WG_INSTANCES_SC){ return numInstances % tp_NUM_WG_INSTANCES_SC == 0; });
-	auto tp_NUM_WG_TREES_SC = atf::tp("NUM_WG_TREES_SC", atf::interval(1,NUM_TREES),
-									  [&](auto tp_NUM_WG_TREES_SC){ return NUM_TREES % tp_NUM_WG_TREES_SC == 0; });
-	auto tp_NUM_WI_CHAINS_SC = atf::tp("NUM_WI_CHAINS_SC", atf::interval(1,NUM_CHAINS),
-									   [&](auto tp_NUM_WI_CHAINS_SC){ return NUM_CHAINS / tp_NUM_WG_CHAINS_SC % tp_NUM_WI_CHAINS_SC == 0; });
-	auto tp_NUM_WI_INSTANCES_SC = atf::tp("NUM_WI_INSTANCES_SC", atf::interval(1, numInstances),
-										  [&](auto tp_NUM_WI_INSTANCES_SC){ return numInstances / tp_NUM_WG_INSTANCES_SC % tp_NUM_WI_INSTANCES_SC == 0; });
-	auto tp_NUM_WI_TREES_SC = atf::tp("NUM_WI_TREES_SC", atf::interval(1,NUM_TREES),
-									  [&](auto tp_NUM_WI_TREES_SC){ return NUM_TREES / tp_NUM_WG_TREES_SC % tp_NUM_WI_TREES_SC == 0; });
-
-        extraParams["NUM_INSTANCES"] = numInstances;
-        extraParams["NUM_LALBELS"] = numLabels;
-        extraParams["NUM_ATTRIBUTES"] = numAttributes;
-        extraParams["NUM_CHAINS"] = NUM_CHAINS;
-        extraParams["NUM_TREES"] = NUM_TREES;
-        extraParams["MAX_LEVEL"] = MAX_LEVEL;
+    extraParams["NUM_INSTANCES"] = numInstances;
+    extraParams["NUM_LALBELS"] = numLabels;
+    extraParams["NUM_ATTRIBUTES"] = numAttributes;
+    extraParams["NUM_CHAINS"] = NUM_CHAINS;
+    extraParams["NUM_TREES"] = NUM_TREES;
+    extraParams["MAX_LEVEL"] = MAX_LEVEL;
 	extraParams["NODES_PER_TREE"] = pow(2.0f, MAX_LEVEL + 1) - 1;
 	extraParams["NUM_WG_CHAINS_FC"] = extraParams["NUM_WG_INSTANCES_FC"] = extraParams["NUM_WG_LABELS_FC"] = extraParams["NUM_WI_CHAINS_FC"] = extraParams["NUM_WI_INSTANCES_FC"] = extraParams["NUM_WI_LABELS_FC"] = 1;
 	
 
 	measureStep = true;
 
-//	auto tuner = atf::exhaustive();
-	auto tuner = atf::open_tuner(atf::cond::evaluations(1000));
-
-	auto best_config = tuner(
-			G(tp_NUM_WG_CHAINS_SC, tp_NUM_WI_CHAINS_SC),
-			G(tp_NUM_WG_INSTANCES_SC, tp_NUM_WI_INSTANCES_SC),
-			G(tp_NUM_WG_TREES_SC, tp_NUM_WI_TREES_SC)
-	)(tune);
+	atf::configuration config;
+	config["NUM_WG_CHAINS_SC"] = 8;
+	config["NUM_WG_INSTANCES_SC"] = 8;
+	config["NUM_WG_TREES_SC"] = 8;
+	config["NUM_WI_CHAINS_SC"] = 2;
+	config["NUM_WI_INSTANCES_SC"] = 2;
+	config["NUM_WI_TREES_SC"] = 2;
+	tune(config);
 }
 
 int main(int argc, char* argv[]) {
@@ -145,5 +136,6 @@ int main(int argc, char* argv[]) {
 		
 	}
 	PlatformUtil::deinit();
+	system("Pause");
 	return 0;
 }
