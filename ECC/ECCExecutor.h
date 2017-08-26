@@ -111,6 +111,7 @@ public:
 
 	void runBuild(ECCData& data, int forestsPerRun, int ensembleSize, int ensemblesPerRun, int ensembleSubSetSize, int forestSubSetSize)
 	{
+		std::cout << ensembleSize << std::endl;
 		std::cout << std::endl << "--- BUILD ---" << std::endl;
 		cl_program prog;
 		PlatformUtil::buildProgramFromFile("eccBuild.cl", prog);//("\\\\X-THINK\\Users\\Public\\eccBuild.cl", prog);
@@ -286,27 +287,30 @@ public:
 		std::string optionString;
 		std::stringstream strstr;		
 		for (auto it=params.begin(); it!=params.end(); ++it)
-			strstr << "-D " << it->first << "=" << it->second;
+		{
+			std::cout << it->first << ": " << it->second << std::endl;
+			strstr << " -D " << it->first << "=" << it->second;
+		}
 		optionString = strstr.str();
 
 		cl_program prog;
-		PlatformUtil::buildProgramFromFile("stepCalcKernel.cl", prog, optionString.c_str());
+		PlatformUtil::buildProgramFromFile("stub.cl"/*"stepCalcKernel.cl"*/, prog, optionString.c_str());
 		Kernel* stepCalcKernel = new Kernel(prog, "stepCalc");
 		clReleaseProgram(prog);
 
-		PlatformUtil::buildProgramFromFile("stepReduceKernel.cl", prog, optionString.c_str());
+		PlatformUtil::buildProgramFromFile("stub.cl"/*"stepReduceKernel.cl"*/, prog, optionString.c_str());
 		Kernel* stepReduceKernel = new Kernel(prog, "stepReduce");
 		clReleaseProgram(prog);
 
-		PlatformUtil::buildProgramFromFile("finalCalcKernel.cl", prog, optionString.c_str());
+		PlatformUtil::buildProgramFromFile("stub.cl"/*"finalCalcKernel.cl"*/, prog, optionString.c_str());
 		Kernel* finalCalcKernel = new Kernel(prog, "finalCalc");
 		clReleaseProgram(prog);
 
-		PlatformUtil::buildProgramFromFile("finalReduceKernel.cl", prog, optionString.c_str());
+		PlatformUtil::buildProgramFromFile("stub.cl"/*"finalReduceKernel.cl"*/, prog, optionString.c_str());
 		Kernel* finalReduceKernel = new Kernel(prog, "finalReduce");
 		clReleaseProgram(prog);
 
-		int dataSize = data.getSize();
+		/*int dataSize = data.getSize();
 		Buffer dataBuffer(data.getValueCount() * data.getSize() * sizeof(double), CL_MEM_READ_ONLY);
 
 		int dataBuffIdx = 0;
@@ -338,36 +342,37 @@ public:
 		stepCalcKernel->SetArg(2, dataBuffer, true);
 		stepCalcKernel->SetArg(4, labelBuffer, true);
 		stepCalcKernel->SetLocalArg(5, localBufferSize_SC * sizeof(OutputAtom));
-		stepCalcKernel->SetArg(6, stepIntermediateBuffer);
+		stepCalcKernel->SetArg(6, stepIntermediateBuffer);*/
 
 		stepCalcKernel->setDim(3);
 		stepCalcKernel->setGlobalSize(params["NUM_WG_INSTANCES_SC"] * params["NUM_WI_INSTANCES_SC"], params["NUM_WG_CHAINS_SC"] * params["NUM_WI_CHAINS_SC"], params["NUM_WG_TREES_SC"] * params["NUM_WI_TREES_SC"]);
 		stepCalcKernel->setLocalSize(params["NUM_WI_INSTANCES_SC"], params["NUM_WI_CHAINS_SC"], params["NUM_WI_TREES_SC"]);
 	
-		stepReduceKernel->SetArg(0, stepIntermediateBuffer);
-		stepReduceKernel->SetArg(1, labelBuffer);
-		stepReduceKernel->SetArg(2, labelOrderBuffer, true);
-		stepReduceKernel->SetLocalArg(3, localBufferSize_SR * sizeof(OutputAtom));
+		//stepReduceKernel->SetArg(0, stepIntermediateBuffer);
+		//stepReduceKernel->SetArg(1, labelBuffer);
+		//stepReduceKernel->SetArg(2, labelOrderBuffer, true);
+		//stepReduceKernel->SetLocalArg(3, localBufferSize_SR * sizeof(OutputAtom));
 
 		stepReduceKernel->setDim(3);
 		stepReduceKernel->setGlobalSize(params["NUM_WG_INSTANCES_SR"] * params["NUM_WI_INSTANCES_SR"], params["NUM_WG_CHAINS_SR"] * params["NUM_WI_CHAINS_SR"], params["NUM_WI_TREES_SR"]);
 		stepReduceKernel->setLocalSize(params["NUM_WI_INSTANCES_SR"], params["NUM_WI_CHAINS_SR"], params["NUM_WI_TREES_SR"]);
 
-		finalCalcKernel->SetArg(0, labelBuffer);
-		finalCalcKernel->SetLocalArg(1, localBufferSize_FC * sizeof(OutputAtom));
-		finalCalcKernel->SetArg(2, finalIntermediateBuffer);
+		//finalCalcKernel->SetArg(0, labelBuffer);
+		//finalCalcKernel->SetLocalArg(1, localBufferSize_FC * sizeof(OutputAtom));
+		//finalCalcKernel->SetArg(2, finalIntermediateBuffer);
 
 		finalCalcKernel->setDim(3);
 		finalCalcKernel->setGlobalSize(params["NUM_WG_INSTANCES_FC"] * params["NUM_WI_INSTANCES_FC"], params["NUM_WG_LABELS_FC"] * params["NUM_WI_LABELS_FC"], params["NUM_WG_CHAINS_FC"] * params["NUM_WI_CHAINS_FC"]);
 		finalCalcKernel->setLocalSize(params["NUM_WI_INSTANCES_FC"], params["NUM_WI_LABELS_FC"], params["NUM_WI_CHAINS_FC"]);
 
-		finalReduceKernel->SetArg(0, finalIntermediateBuffer);
-		finalReduceKernel->SetArg(1, resultBuffer);
-		finalReduceKernel->SetLocalArg(2, localBufferSize_FR * sizeof(OutputAtom));
+		//finalReduceKernel->SetArg(0, finalIntermediateBuffer);
+		//finalReduceKernel->SetArg(1, resultBuffer);
+		//finalReduceKernel->SetLocalArg(2, localBufferSize_FR * sizeof(OutputAtom));
 
 		finalReduceKernel->setDim(3);
 		finalReduceKernel->setGlobalSize(NUM_WG_INSTANCES_FR * NUM_WI_INSTANCES_FR, NUM_WG_LABELS_FR * NUM_WI_LABELS_FR, NUM_WI_CHAINS_FR);
 		finalReduceKernel->setLocalSize(NUM_WI_INSTANCES_FR, NUM_WI_LABELS_FR, NUM_WI_CHAINS_FR);
+
 
 		double SCTime = 0.0, SRTime = 0.0, FCTime = 0.0, FRTime = 0.0;
 		for (int chainIndex = 0; chainIndex < chainSize; ++chainIndex)
@@ -382,7 +387,9 @@ public:
 		finalCalcKernel->execute();
 		finalReduceKernel->execute();
 
-		FCTime = finalCalcKernel->getRuntime();
+		return;
+
+		/*FCTime = finalCalcKernel->getRuntime();
 		FRTime = finalReduceKernel->getRuntime();
 		newTime = SCTime + SRTime + (measureStep ? 0 : (FCTime + FRTime));
 		std::cout << "Classification kernel took " << newTime << " ms."
@@ -409,7 +416,7 @@ public:
 		delete stepCalcKernel;
 		delete stepReduceKernel;
 		delete finalCalcKernel;
-		delete finalReduceKernel;
+		delete finalReduceKernel;*/
 	}
 
 	void runClassifyOld(ECCData& data, std::vector<double>& values, std::vector<int>& votes)

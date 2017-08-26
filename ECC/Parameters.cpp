@@ -1,12 +1,12 @@
 #include "atf_library/atf.h"
 #include "ECCExecutor.h"
 
-#define NUM_CHAINS 0
-#define NUM_TREES 0
-#define MAX_LEVEL 0
+#define NUM_CHAINS 5
+#define NUM_TREES 8
+#define MAX_LEVEL 10
 
 ECCExecutor *ecc;
-ECCData *data;
+ECCData *tuneData;
 std::vector<MultilabelInstance> evalCopy;
 
 std::vector<double> valOld, valNew;
@@ -22,7 +22,7 @@ bool measureStep;
 
 size_t tune(atf::configuration config){
 	std::map<std::string, int> params = extraParams;
-	for (auto it = extraParams.begin(); it!=extraParams.end(); ++it)
+	for (auto it = config.begin(); it!=config.end(); ++it)
 		params[it->first] = it->second;
 
 	params["NUM_WG_CHAINS_SR"] = params["NUM_WG_CHAINS_SC"];
@@ -37,7 +37,8 @@ size_t tune(atf::configuration config){
         params["NUM_WI_INSTANCES_FR"] = params["NUM_WI_INSTANCES_FC"];
         params["NUM_WI_CHAINS_FR"] = params["NUM_WI_CHAINS_FC"]; 
 
-	ecc->runClassifyNew(*data, valNew, voteNew, params, measureStep);
+	ecc->runClassifyNew(*tuneData, valNew, voteNew, params, measureStep);
+        return 1000;
 	bool sameResult = true;
 	size_t hitsOld = 0, hitsNew = 0;
         for (int i = 0; i < evalCopy.size(); ++i)
@@ -80,7 +81,7 @@ void tuneClassify() {
 									  [&](auto tp_NUM_WI_TREES_SC){ return NUM_TREES / tp_NUM_WG_TREES_SC % tp_NUM_WI_TREES_SC == 0; });
 
         extraParams["NUM_INSTANCES"] = numInstances;
-        extraParams["NUM_LALBELS"] = numLabels;
+        extraParams["NUM_LABELS"] = numLabels;
         extraParams["NUM_ATTRIBUTES"] = numAttributes;
         extraParams["NUM_CHAINS"] = NUM_CHAINS;
         extraParams["NUM_TREES"] = NUM_TREES;
@@ -142,7 +143,12 @@ int main(int argc, char* argv[]) {
 		ECCExecutor eccex(MAX_LEVEL, evalInstances[0].getValueCount(), NUM_TREES);
 		eccex.runBuild(trainData, NUM_TREES, NUM_CHAINS, NUM_CHAINS, 100, 50);
 		eccex.runClassifyOld(evalData, valOld, voteOld);
-		
+		numAttributes = trainData.getAttribCount();
+		numLabels = trainData.getLabelCount();
+		numInstances = trainData.getInstances().size();
+		tuneData = &trainData;
+		ecc = &eccex;
+		tuneClassify();		
 	}
 	PlatformUtil::deinit();
 	return 0;
