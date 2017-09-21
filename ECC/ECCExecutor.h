@@ -286,7 +286,7 @@ public:
 		std::string optionString;
 		std::stringstream strstr;		
 		for (auto it=params.begin(); it!=params.end(); ++it)
-			strstr << "-D " << it->first << "=" << it->second;
+			strstr << " -D " << it->first << "=" << it->second;
 		optionString = strstr.str();
 
 		cl_program prog;

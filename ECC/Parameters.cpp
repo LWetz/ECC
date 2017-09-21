@@ -1,11 +1,11 @@
 #include "ECCExecutor.h"
 
-#define NUM_CHAINS 5
+#define NUM_CHAINS 8
 #define NUM_TREES 8
 #define MAX_LEVEL 10
 
 ECCExecutor *ecc;
-ECCData *data;
+ECCData *evalData;
 std::vector<MultilabelInstance> evalCopy;
 
 std::vector<double> valOld, valNew;
@@ -26,7 +26,7 @@ namespace atf
 
 size_t tune(atf::configuration config){
 	std::map<std::string, int> params = extraParams;
-	for (auto it = extraParams.begin(); it!=extraParams.end(); ++it)
+	for (auto it = config.begin(); it!=config.end(); ++it)
 		params[it->first] = it->second;
 
 	params["NUM_WG_CHAINS_SR"] = params["NUM_WG_CHAINS_SC"];
@@ -41,7 +41,7 @@ size_t tune(atf::configuration config){
     params["NUM_WI_INSTANCES_FR"] = params["NUM_WI_INSTANCES_FC"];
     params["NUM_WI_CHAINS_FR"] = params["NUM_WI_CHAINS_FC"]; 
 
-	ecc->runClassifyNew(*data, valNew, voteNew, params, measureStep);
+	ecc->runClassifyNew(*evalData, valNew, voteNew, params, measureStep);
 	bool sameResult = true;
 	size_t hitsOld = 0, hitsNew = 0;
         for (int i = 0; i < evalCopy.size(); ++i)
@@ -64,14 +64,27 @@ size_t tune(atf::configuration config){
         }
 	std::cout << "Time: " << ecc->getNewTime() << std::endl;
 	std::cout << "Same Result: " << std::boolalpha << sameResult << std::endl;
-    std::cout << "Prediction Performance: Old " << (hitsOld / (evalCopy.size()*evalCopy[0].getNumLabels()))*100.0 << "% | New " << (hitsNew / (evalCopy.size()*evalCopy[0].getNumLabels()))*100.0 << "%" << std::endl;
+    std::cout << "Prediction Performance: Old " << ((float)hitsOld / (evalCopy.size()*evalCopy[0].getNumLabels()))*100.0 << "% | New " << ((float)hitsNew / (evalCopy.size()*evalCopy[0].getNumLabels()))*100.0 << "%" << std::endl;
 
 	return ecc->getNewTime();
 }
 
 void tuneClassify() {
+	auto tp_NUM_WG_CHAINS_SC = atf::tp("NUM_WG_CHAINS_SC", atf::interval(1, NUM_CHAINS),
+		[&](auto tp_NUM_WG_CHAINS_SC) { return NUM_CHAINS  % tp_NUM_WG_CHAINS_SC == 0; });
+	auto tp_NUM_WG_INSTANCES_SC = atf::tp("NUM_WG_INSTANCES_SC", atf::interval(1, numInstances),
+		[&](auto tp_NUM_WG_INSTANCES_SC) { return numInstances % tp_NUM_WG_INSTANCES_SC == 0; });
+	auto tp_NUM_WG_TREES_SC = atf::tp("NUM_WG_TREES_SC", atf::interval(1, NUM_TREES),
+		[&](auto tp_NUM_WG_TREES_SC) { return NUM_TREES % tp_NUM_WG_TREES_SC == 0; });
+	auto tp_NUM_WI_CHAINS_SC = atf::tp("NUM_WI_CHAINS_SC", atf::interval(1, NUM_CHAINS),
+		[&](auto tp_NUM_WI_CHAINS_SC) { return NUM_CHAINS / tp_NUM_WG_CHAINS_SC % tp_NUM_WI_CHAINS_SC == 0; });
+	auto tp_NUM_WI_INSTANCES_SC = atf::tp("NUM_WI_INSTANCES_SC", atf::interval(1, numInstances),
+		[&](auto tp_NUM_WI_INSTANCES_SC) { return numInstances / tp_NUM_WG_INSTANCES_SC % tp_NUM_WI_INS$
+	auto tp_NUM_WI_TREES_SC = atf::tp("NUM_WI_TREES_SC", atf::interval(1, NUM_TREES),
+			[&](auto tp_NUM_WI_TREES_SC) { return NUM_TREES / tp_NUM_WG_TREES_SC % tp_NUM_WI_TREES_SC == 0; });
+
     extraParams["NUM_INSTANCES"] = numInstances;
-    extraParams["NUM_LALBELS"] = numLabels;
+    extraParams["NUM_LABELS"] = numLabels;
     extraParams["NUM_ATTRIBUTES"] = numAttributes;
     extraParams["NUM_CHAINS"] = NUM_CHAINS;
     extraParams["NUM_TREES"] = NUM_TREES;
@@ -82,14 +95,14 @@ void tuneClassify() {
 
 	measureStep = true;
 
-	atf::configuration config;
-	config["NUM_WG_CHAINS_SC"] = 8;
-	config["NUM_WG_INSTANCES_SC"] = 8;
-	config["NUM_WG_TREES_SC"] = 8;
-	config["NUM_WI_CHAINS_SC"] = 2;
-	config["NUM_WI_INSTANCES_SC"] = 2;
-	config["NUM_WI_TREES_SC"] = 2;
-	tune(config);
+	//      auto tuner = atf::exhaustive();
+	auto tuner = atf::open_tuner(atf::cond::evaluations(1000));
+
+	auto best_config = tuner(
+		G(tp_NUM_WG_CHAINS_SC, tp_NUM_WI_CHAINS_SC),
+		G(tp_NUM_WG_INSTANCES_SC, tp_NUM_WI_INSTANCES_SC),
+		G(tp_NUM_WG_TREES_SC, tp_NUM_WI_TREES_SC)
+	)(tune);
 }
 
 int main(int argc, char* argv[]) {
@@ -115,7 +128,6 @@ int main(int argc, char* argv[]) {
 			trainInstances.push_back(inputCopy[idx]);
 			inputCopy.erase(inputCopy.begin() + idx);
 		}
-		std::vector<MultilabelInstance> evalCopy;
 		for (int i = 0; i < evalSize; ++i)
 		{
 			int idx = Util::randomInt(inputCopy.size());
@@ -129,11 +141,14 @@ int main(int argc, char* argv[]) {
 			inputCopy.erase(inputCopy.begin() + idx);
 		}
 		ECCData trainData(trainInstances, data.getAttribCount(), data.getLabelCount());
-		ECCData evalData(evalInstances, data.getAttribCount(), data.getLabelCount());
-		ECCExecutor eccex(MAX_LEVEL, evalInstances[0].getValueCount(), NUM_TREES);
-		eccex.runBuild(trainData, NUM_TREES, NUM_CHAINS, NUM_CHAINS, 100, 50);
-		eccex.runClassifyOld(evalData, valOld, voteOld);
-		
+		evalData = new ECCData(evalInstances, data.getAttribCount(), data.getLabelCount());
+		ecc = new ECCExecutor(MAX_LEVEL, evalInstances[0].getValueCount(), NUM_TREES);
+		ecc->runBuild(trainData, NUM_TREES, NUM_CHAINS, NUM_CHAINS, 100, 50);
+		ecc->runClassifyOld(*evalData, valOld, voteOld);
+		numLabels = evalData->getLabelCount();
+		numAttributes = evalData->getAttribCount();
+		numInstances = evalData->getInstances().size();
+		tuneClassify();
 	}
 	PlatformUtil::deinit();
 	system("Pause");
