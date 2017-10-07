@@ -29,8 +29,8 @@ class ECCExecutor
 	int ensembleSize;
 	int maxAttributes;
 
-	double oldTime;
-	double newTime;
+	size_t oldTime;
+	size_t newTime;
 
 	std::vector<std::vector<int>> partitionInstances(ECCData& data, EnsembleOfClassifierChains& ecc)
 	{
@@ -145,7 +145,6 @@ public:
 		nodeIndexBuffer = Buffer(sizeof(int) * ecc->getTotalSize(), CL_MEM_READ_WRITE);
 		Buffer tmpNodeValueBuffer(sizeof(double) * globalSize * nodesPerTree, CL_MEM_READ_WRITE);
 		Buffer tmpNodeIndexBuffer(sizeof(int) * globalSize * nodesPerTree, CL_MEM_READ_WRITE);
-
 
 		int dataSize = data.getSize();
 		Buffer dataBuffer(data.getValueCount() * data.getSize() * sizeof(double), CL_MEM_READ_ONLY);
@@ -289,6 +288,8 @@ public:
 			strstr << " -D " << it->first << "=" << it->second;
 		optionString = strstr.str();
 
+		std::cout << optionString << std::endl;
+
 		cl_program prog;
 		PlatformUtil::buildProgramFromFile("stepCalcKernel.cl", prog, optionString.c_str());
 		Kernel* stepCalcKernel = new Kernel(prog, "stepCalc");
@@ -366,10 +367,29 @@ public:
 		finalReduceKernel->SetLocalArg(2, localBufferSize_FR * sizeof(OutputAtom));
 
 		finalReduceKernel->setDim(3);
-		finalReduceKernel->setGlobalSize(NUM_WG_INSTANCES_FR * NUM_WI_INSTANCES_FR, NUM_WG_LABELS_FR * NUM_WI_LABELS_FR, NUM_WI_CHAINS_FR);
-		finalReduceKernel->setLocalSize(NUM_WI_INSTANCES_FR, NUM_WI_LABELS_FR, NUM_WI_CHAINS_FR);
+		finalReduceKernel->setGlobalSize(params["NUM_WG_INSTANCES_FR"] * params["NUM_WI_INSTANCES_FR"], params["NUM_WG_LABELS_FR"] * params["NUM_WI_LABELS_FR"], params["NUM_WI_CHAINS_FR"]);
+		finalReduceKernel->setLocalSize(params["NUM_WI_INSTANCES_FR"], params["NUM_WI_LABELS_FR"], params["NUM_WI_CHAINS_FR"]);
 
-		double SCTime = 0.0, SRTime = 0.0, FCTime = 0.0, FRTime = 0.0;
+		bool sizesok = stepCalcKernel->verifyWorkgroupSize();
+                sizesok = sizesok && stepReduceKernel->verifyWorkgroupSize();
+                sizesok = sizesok && finalCalcKernel->verifyWorkgroupSize();
+                sizesok = sizesok && finalReduceKernel->verifyWorkgroupSize();
+
+                if(!sizesok)
+                {
+                        std::cout << "Workgroup too large" << std::endl;
+                        newTime = std::numeric_limits<int>::max();
+
+			for (int n = 0; n < data.getLabelCount()*data.getSize(); ++n)
+                	{
+                	        values.push_back(0.0);
+        	                votes.push_back(0);
+	                }
+
+                        return;
+                }
+
+		size_t SCTime = 0.0, SRTime = 0.0, FCTime = 0.0, FRTime = 0.0;
 		for (int chainIndex = 0; chainIndex < chainSize; ++chainIndex)
 		{
 			stepCalcKernel->SetArg(3, chainIndex);
@@ -385,20 +405,23 @@ public:
 		FCTime = finalCalcKernel->getRuntime();
 		FRTime = finalReduceKernel->getRuntime();
 		newTime = SCTime + SRTime + (measureStep ? 0 : (FCTime + FRTime));
-		std::cout << "Classification kernel took " << newTime << " ms."
-			<< "\n\tstepCalc: " << SCTime 
-			<< "\n\tstepReduce: " << SRTime
-			<< "\n\tfinalCalc: " << FCTime
-			<< "\n\tfinalReduce: " << FRTime
+		std::cout << "Classification kernel took " << ((double)newTime * 1e-06) << " ms."
+			<< "\n\tstepCalc: " << ((double)SCTime * 1e-06) 
+			<< "\n\tstepReduce: " << ((double)SRTime * 1e-06)
+			<< "\n\tfinalCalc: " << ((double)FCTime * 1e-06)
+			<< "\n\tfinalReduce: " << ((double)FRTime * 1e-06)
 			<< std::endl;
 		
 		resultBuffer.read();
 
+		bool all0 = true;
 		for (int n = 0; n < data.getLabelCount()*data.getSize(); ++n)
 		{
 			values.push_back(static_cast<OutputAtom*>(resultBuffer.getData())[n].result);
 			votes.push_back(static_cast<OutputAtom*>(resultBuffer.getData())[n].vote);
+			if(votes[n] != 0) all0 = false;
 		}
+		std::cout << "all0: " << (all0?"true":"false") << std::endl;
 
 		dataBuffer.clear();
 		resultBuffer.clear();
@@ -463,7 +486,7 @@ public:
                
 		resultBuffer.read();
 		voteBuffer.read();
-		std::cout << "Classification kernel took " << oldTime << " ms." << std::endl;
+		std::cout << "Classification kernel took " << ((double)oldTime * 1e-06) << " ms." << std::endl;
 
 		for (int n = 0; n < data.getLabelCount()*data.getSize(); ++n)
 		{
