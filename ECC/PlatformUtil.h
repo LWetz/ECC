@@ -79,7 +79,7 @@ public:
 			{
 				clGetDeviceInfo(dids[0], CL_DEVICE_NAME, buff.size(), &buff[0], &infoLen);
 				std::cout << "No OpenCL device named \"" << deviceName << "\", using " << buff.substr(0, infoLen) << " instead." << std::endl;
-				platform = pids[0];
+				device = dids[0];
 			}
 		}
 
@@ -87,7 +87,7 @@ public:
 		context = clCreateContext(NULL, 1, &device, NULL, NULL, &ret);
 		if (ret != CL_SUCCESS)
 		{
-			std::cout << "Couldn't create context, aborting" << std::endl;
+			std::cout << "Couldn't create context, aborting (" << ret << ")" <<  std::endl;
 			return false;
 		}
 
@@ -153,6 +153,11 @@ public:
 	static cl_command_queue getCommandQueue()
 	{
 		return queue;
+	}
+
+	static cl_device_id getDevice()
+	{
+		return device;
 	}
 
 	~PlatformUtil();
