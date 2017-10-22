@@ -17,7 +17,7 @@
 
 #include <cstring>
 #include <algorithm>
-
+#include <cstdlib>
 
 #include "tuner_with_constraints.hpp"
 #include "tuner_without_constraints.hpp"
@@ -50,14 +50,20 @@ class open_tuner_class : public T
 
       std::stringstream tp_parameter_code;
       for( size_t i = 0 ; i < this->_search_space.num_params() ; ++ i )
-        tp_parameter_code << "manipulator.add_parameter(IntegerParameter('" << this->_search_space.name( i ) << "', 0, " << this->_search_space.max_childs( i ) << "))\n";
+        tp_parameter_code << "manipulator.add_parameter(IntegerParameter('" << this->_search_space.name( i ) << "', 0, " << this->_search_space.max_childs( i ) - 1 << "))\n";
       
       
       size_t start_pos = python_code.find(":::parameters:::");
       python_code.replace( start_pos, strlen(":::parameters:::"), tp_parameter_code.str() );
 
 //      Py_SetProgramName( argv[0] ); // optional but recommended
-      Py_Initialize();
+
+      static bool first_time = true;
+      if( first_time )
+      {
+        Py_Initialize();
+        first_time = false;
+      }
       
       std::vector< std::string > opentuner_cmd_line_arguments;
       
@@ -139,7 +145,13 @@ class open_tuner_class : public T
       Py_XDECREF( p_report_result           );
       Py_XDECREF( p_finish                  );
       
-      Py_Finalize();
+      static bool first_time = true;
+      if( first_time )
+      {
+        std::atexit( Py_Finalize );
+        first_time = false;
+      }
+      
     }
 
   

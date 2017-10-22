@@ -403,7 +403,7 @@ class search_space_tree : public search_space
     ~search_space_tree()
     {
 
-//      std::cout << "search space size: " << this->num_configs() << std::endl;
+      std::cout << "search space size: " << this->num_configs() << std::endl;
 #if 0
       for( size_t i = 0 ; i < this->num_configs() ; ++i )
       {

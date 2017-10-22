@@ -25,6 +25,9 @@ value_type::value_type()
   : _type_id( root_t )
 {}
 
+value_type::value_type( const bool& b )
+  : _type_id( bool_t ), _bool_val( b )
+{}
 value_type::value_type( const int& i )
   : _type_id( int_t ), _int_val( i )
 {}
@@ -44,6 +47,46 @@ value_type::value_type( const std::string& s )
 
 
 // access values
+bool value_type::bool_val() const
+{
+  switch( this->type_id() )
+  {
+    case root_t:
+      assert( false && "should never be reached" );
+      throw std::exception();
+      break;
+
+    case bool_t:
+      return _bool_val;
+      break;
+      
+    case int_t:
+      return _int_val;
+      break;
+      
+    case size_t_t:
+      return _size_t_val;
+      break;
+
+    case float_t:
+      return _float_val;
+      break;
+
+    case double_t:
+      return _double_val;
+      break;
+
+    case string_t:
+      assert(false && "no cast from std::string to bool" );
+      throw std::exception();
+      break;
+    
+    default:
+      throw std::exception();
+  }
+}
+
+
 int value_type::int_val() const
 {
   switch( this->type_id() )
@@ -51,6 +94,10 @@ int value_type::int_val() const
     case root_t:
       assert( false && "should never be reached" );
       throw std::exception();
+      break;
+      
+    case bool_t:
+      return _bool_val;
       break;
       
     case int_t:
@@ -76,7 +123,7 @@ int value_type::int_val() const
       break;
 
     case string_t:
-      assert(false && "no cast from int to std::string" );
+      assert(false && "no cast from std::string to int" );
       throw std::exception();
       break;
     
@@ -94,6 +141,10 @@ size_t value_type::size_t_val() const
       assert( false && "should never be reached" );
       throw std::exception();
       break;
+
+    case bool_t:
+      return _bool_val;
+      break;
       
     case int_t:
       return _int_val;
@@ -112,7 +163,7 @@ size_t value_type::size_t_val() const
       break;
 
     case string_t:
-      assert(false && "no cast from int to std::string" );
+      assert(false && "no cast from std::string to size_t" );
       throw std::exception();
       break;
     
@@ -130,6 +181,10 @@ float value_type::float_val() const
       assert( false && "should never be reached" );
       throw std::exception();
       break;
+
+    case bool_t:
+      return _bool_val;
+      break;
       
     case int_t:
       return _int_val;
@@ -148,7 +203,7 @@ float value_type::float_val() const
       break;
 
     case string_t:
-      assert(false && "no cast from int to std::string" );
+      assert(false && "no cast from std::string to float" );
       throw std::exception();
       break;
     
@@ -165,6 +220,10 @@ double value_type::double_val() const
     case root_t:
       assert( false && "should never be reached" );
       throw std::exception();
+      break;
+
+    case bool_t:
+      return _bool_val;
       break;
       
     case int_t:
@@ -184,7 +243,7 @@ double value_type::double_val() const
       break;
 
     case string_t:
-      assert(false && "no cast from int to std::string" );
+      assert(false && "no cast from std::string to double" );
       throw std::exception();
       break;
     
@@ -203,28 +262,27 @@ std::string value_type::string_val() const
       throw std::exception();
       break;
       
+    case bool_t:
+      if(_bool_val == true)
+        return "true";
+      else
+        return "false";
+      break;
+      
     case int_t:
-      std::to_string( _int_val );
-//      assert(false && "no cast from std::string to int" );
-//      throw std::exception();
+      return std::to_string( _int_val );
       break;
       
     case size_t_t:
-      std::to_string( _size_t_val );
-//      assert(false && "no cast from std::string to size_t" );
-//      throw std::exception();
+      return std::to_string( _size_t_val );
       break;
 
     case float_t:
-      std::to_string( _float_val );
-//      assert(false && "no cast from std::string to float" );
-//      throw std::exception();
+      return std::to_string( _float_val );
       break;
 
     case double_t:
-      std::to_string( _double_val );
-//      assert(false && "no cast from std::string to double" );
-//      throw std::exception();
+      return std::to_string( _double_val );
       break;
 
     case string_t:
@@ -260,6 +318,12 @@ std::string value_type::string_val() const
 
 
 // implicit cast operators
+value_type::operator bool() const
+{
+//  assert( _type_id == int_t );  //TODO: replace by exception and warning message
+  
+  return this->bool_val();
+}
 value_type::operator int() const
 {
 //  assert( _type_id == int_t );  //TODO: replace by exception and warning message
@@ -304,6 +368,11 @@ value_type::value_type( const value_type& other )
       _type_id = root_t;
       break;
       
+    case bool_t:
+      _type_id  = bool_t;
+      _bool_val = other._bool_val;
+      break;
+
     case int_t:
       _type_id = int_t;
       _int_val = other._int_val;
@@ -316,7 +385,7 @@ value_type::value_type( const value_type& other )
 
     case float_t:
       _type_id    = float_t;
-      _double_val = other._float_val;
+      _float_val = other._float_val;
       break;
 
     case double_t:
@@ -348,6 +417,12 @@ value_type& value_type::operator=( const value_type& other )
       return *this;
       break;
       
+    case bool_t:
+      this->_type_id = bool_t;
+      this->_bool_val = other._bool_val;
+      return *this;
+      break;
+
     case int_t:
       this->_type_id = int_t;
       this->_int_val = other._int_val;
@@ -389,6 +464,7 @@ value_type::~value_type()
   switch( this->type_id() )
   {
     case root_t:
+    case bool_t:
     case int_t:
     case size_t_t:
     case float_t:
@@ -409,6 +485,10 @@ std::ostream& operator<< (std::ostream &out, const value_type& value )
 {
   switch( value.type_id() )
   {
+    case value_type::bool_t:
+      out << static_cast<bool>( value );
+      break;
+
     case value_type::int_t:
       out << static_cast<int>( value );
       break;
@@ -444,6 +524,10 @@ bool operator!=( const value_type& lhs, const value_type& rhs )
   
   switch( type_id )
   {
+    case value_type::bool_t:
+      return ( lhs.bool_val() != rhs.bool_val() );
+      break;
+
     case value_type::int_t:
       return ( lhs.int_val() != rhs.int_val() );
       break;
@@ -477,6 +561,10 @@ bool operator<( const value_type& lhs, const value_type& rhs )
 
   switch( type_id )
   {
+    case value_type::bool_t:
+      return ( lhs.bool_val() < rhs.bool_val() );
+      break;
+
     case value_type::int_t:
       return ( lhs.int_val() < rhs.int_val() );
       break;

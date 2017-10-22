@@ -16,7 +16,29 @@
 namespace atf {
 
 template< typename T >
-void print_type();
+void print_type()
+{
+  std::cout << "unknown type" << std::endl;
+}
+
+template<>
+void print_type<int>()
+{
+  std::cout << "int" << std::endl;
+}
+
+template<>
+void print_type<size_t>()
+{
+  std::cout << "size_t" << std::endl;
+}
+
+
+template<>
+void print_type<bool>()
+{
+  std::cout << "bool" << std::endl;
+}
 
 
 template< typename T_lhs, typename T_rhs,

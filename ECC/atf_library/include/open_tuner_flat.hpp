@@ -9,6 +9,8 @@
 #ifndef open_tuner_flat_h
 #define open_tuner_flat_h
 
+#include <cstdlib>
+
 #include "tuner_with_constraints.hpp"
 #include "tuner_without_constraints.hpp"
 
@@ -46,7 +48,14 @@ class open_tuner_flat_class : public T
       python_code.replace( start_pos, strlen(":::parameters:::"), tp_parameter_code.str() );
 
 //      Py_SetProgramName( argv[0] ); // optional but recommended
-      Py_Initialize();
+
+      static bool first_time = true;
+      if( first_time )
+      {
+        Py_Initialize();
+        first_time = false;
+      }
+
       
       std::vector< std::string > opentuner_cmd_line_arguments;
       
@@ -114,7 +123,12 @@ class open_tuner_flat_class : public T
       Py_XDECREF( p_report_result           );
       Py_XDECREF( p_finish                  );
       
-      Py_Finalize();
+      static bool first_time = true;
+      if( first_time )
+      {
+        std::atexit( Py_Finalize );
+        first_time = false;
+      }
     }
 
   

@@ -7,11 +7,11 @@ namespace Util
 		startTime = std::chrono::system_clock::now();
 	}
 
-	double StopWatch::stop()
+	size_t StopWatch::stop()
 	{
 		endTime = std::chrono::system_clock::now();
 		auto elapsed = endTime - startTime;
-		return std::chrono::duration_cast<std::chrono::nanoseconds>(elapsed).count() / 1e06;
+		return std::chrono::duration_cast<std::chrono::nanoseconds>(elapsed).count();
 	}
 
 	class Random

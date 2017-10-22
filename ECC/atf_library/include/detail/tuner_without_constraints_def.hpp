@@ -17,7 +17,7 @@ template< typename abort_condition_t >
 tuner_without_constraints::tuner_without_constraints( const abort_condition_t& abort_condition, const bool& abort_on_error )
   : _search_space(), _abort_on_error( abort_on_error ), _number_of_evaluated_configs(), _number_of_invalid_configs(), _evaluations_required_to_find_best_found_result(), _valid_evaluations_required_to_find_best_found_result(), _history()
 {
-  _abort_condition = new abort_condition_t( abort_condition );
+  _abort_condition = std::unique_ptr<cond::abort>( new abort_condition_t( abort_condition ) );
   
   _history.emplace_back( std::chrono::high_resolution_clock::now(),
                          configuration{},
@@ -33,7 +33,7 @@ template< typename    T , typename    range_t , typename    callable ,
         >
 tuner_without_constraints& tuner_without_constraints::operator()( tp_t<T,range_t,callable>& tp, tp_t<Ts,range_ts,callables>&... tps )
 {
-  _search_space.add_tp( tp, static_cast<void*>( &(tp._act_elem) ) );
+  _search_space.add_tp( tp, static_cast<void*>( tp._act_elem.get() ) );
   
   this->operator()( tps... );
   
@@ -44,7 +44,7 @@ tuner_without_constraints& tuner_without_constraints::operator()( tp_t<T,range_t
 template< typename T, typename range_t, typename callable >
 tuner_without_constraints& tuner_without_constraints::operator()( tp_t<T,range_t,callable>& tp )
 {
-  _search_space.add_tp( tp, static_cast<void*>( &(tp._act_elem) ) );
+  _search_space.add_tp( tp, static_cast<void*>( tp._act_elem.get() ) );
   
   return *this;
 }
@@ -59,7 +59,7 @@ configuration tuner_without_constraints::operator()( callable program ) // func 
   
   // if now abort condition is specified then iterate over the whole search space.
   if( _abort_condition == NULL )
-    _abort_condition = new cond::evaluations( _search_space.num_configs() );
+    _abort_condition = std::unique_ptr<cond::abort>( new cond::evaluations( _search_space.num_configs() ) );
  
  
   auto start = std::chrono::system_clock::now();

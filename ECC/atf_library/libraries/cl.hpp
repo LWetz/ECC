@@ -226,7 +226,6 @@
 #endif // linux
 
 #include <cstring>
-#include <iostream>
 
 
 /*! \namespace cl

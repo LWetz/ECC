@@ -10,7 +10,6 @@
 #define ocl_wrapper_h
 
 
-#include <array>
 #include <stdio.h>
 #include <vector>
 #include <sstream>
@@ -33,10 +32,10 @@
 #include "helper.hpp"
 
 
-#define NUM_EVALUATIONS  5
+#define NUM_EVALUATIONS  1
 #define WARM_UPS         0
 
-//enables lazy evaluation
+
 namespace
 {
   template< typename T >
@@ -72,7 +71,15 @@ namespace cf
   using thread_configurations_t = std::map< ::atf::configuration, std::array<nd_range_t,2> >;
 
 
-void check_error(cl_int err);
+void check_error(cl_int err)
+{
+  if (err != CL_SUCCESS)
+  {
+    printf("Error with errorcode: %d\n", err);
+//    throw std::exception();
+//    exit(1);
+  }
+}
 
 #if 0
 
@@ -157,6 +164,40 @@ class device_info
       _platform = _device.getInfo<CL_DEVICE_PLATFORM>();
     }
   
+    device_info( size_t platform_id, size_t device_id)
+      : _platform(), _device()
+    {
+      // get platform
+      std::vector<cl::Platform> platforms;
+      auto error = cl::Platform::get( &platforms ); check_error( error );
+      
+      if( platform_id >= platforms.size() )
+      {
+        std::cout << "No platform with id " << platform_id << std::endl;
+        exit( 1 );
+      }
+
+      _platform = platforms[ platform_id ];
+      std::string platform_name;
+      _platform.getInfo( CL_PLATFORM_VENDOR, &platform_name );
+      std::cout << "Platform with name " << platform_name << " found." << std::endl;
+      
+      // get device
+      std::vector<cl::Device> devices;
+      error = _platform.getDevices( CL_DEVICE_TYPE_ALL, &devices ); check_error( error );
+      
+      if( device_id >= devices.size() )
+      {
+        std::cout << "No device with id " << device_id << " for platform with id " << platform_id << std::endl;
+        exit( 1 );
+      }
+      
+      _device = devices[ device_id ];
+      std::string device_name;
+      _device.getInfo( CL_DEVICE_NAME, &device_name );
+      std::cout << "Device with name " << device_name << " found." << std::endl;
+    }
+  
     device_info( const std::string& vendor_name,
                  const device_t&    device_type,
                  const int&         device_number
@@ -192,7 +233,6 @@ class device_info
       {
         std::string platform_name;
         platform.getInfo( CL_PLATFORM_VENDOR, &platform_name );
-	std::cout << platform_name << std::endl;
         if( platform_name.find( vendor_name ) != std::string::npos )
         {
           _platform = platform;
@@ -210,7 +250,7 @@ class device_info
 
       // get device
       std::vector<cl::Device> devices;
-      _platform.getDevices( ocl_device_type, &devices );
+      error = _platform.getDevices( ocl_device_type, &devices ); check_error( error );
 
       if( device_number < devices.size() )
       {
@@ -351,7 +391,7 @@ class ocl_cf_class
     }
   
   
-    size_t operator()(configuration& configuration )
+    size_t operator()( configuration& configuration )
     {
 #if 0
 // LÖSCHEN !!!
@@ -438,30 +478,33 @@ if(
      // update tp values
      for( auto& tp : configuration )
      {
-       auto value        = tp.second.value();
-       auto tp_value_ptr = tp.second.tp_value_ptr();
- 
-       switch( value.type_id() )
-       {
-         case value_type::int_t:
-           *static_cast<int*>( tp_value_ptr ) = static_cast<int>( value );
-           break;
-          
-         case value_type::size_t_t:
-           *static_cast<size_t*>( tp_value_ptr ) = static_cast<size_t>( value );
-           break;
-
-         case value_type::float_t:
-           *static_cast<float*>( tp_value_ptr ) = static_cast<float>( value );
-           break;
-
-         case value_type::double_t:
-           *static_cast<double*>( tp_value_ptr ) = static_cast<double>( value );
-           break;
-        
-         default:
-           throw std::exception();
-       }
+       auto tp_value = tp.second;
+       tp_value.update_tp();
+//       
+//       auto value        = tp.second.value();
+//       auto tp_value_ptr = tp.second.tp_value_ptr();
+// 
+//       switch( value.type_id() )
+//       {
+//         case value_type::int_t:
+//           *static_cast<int*>( tp_value_ptr ) = static_cast<int>( value );
+//           break;
+//          
+//         case value_type::size_t_t:
+//           *static_cast<size_t*>( tp_value_ptr ) = static_cast<size_t>( value );
+//           break;
+//
+//         case value_type::float_t:
+//           *static_cast<float*>( tp_value_ptr ) = static_cast<float>( value );
+//           break;
+//
+//         case value_type::double_t:
+//           *static_cast<double*>( tp_value_ptr ) = static_cast<double>( value );
+//           break;
+//        
+//         default:
+//           throw std::exception();
+//       }
      }
 
      size_t gs_0 = std::get<0>( _global_size_pattern ).get_value();
@@ -486,6 +529,7 @@ if(
       // set additional kernel flags
       flags << _kernel_flags;
 
+std::cout << flags.str() << std::endl;
 
       // compile kernel
       try
@@ -496,11 +540,10 @@ if(
 
         auto end = std::chrono::system_clock::now();
         auto runtime_in_sec = std::chrono::duration_cast<std::chrono::milliseconds>( end - start ).count();
-//        std::cout << std::endl << "compilation runtime: " << runtime_in_sec << "msec\n" << std::endl;
+        std::cout << std::endl << "compilation runtime: " << runtime_in_sec << "msec\n" << std::endl;
       }
       catch( cl::Error& err )
       {
-          std::cout << flags.str() << std::endl;
         if( err.err() == CL_BUILD_PROGRAM_FAILURE )
         {
           auto buildLog = _program.getBuildInfo<CL_PROGRAM_BUILD_LOG>( _device );
@@ -520,7 +563,7 @@ if(
       
       // start kernel
       cl::Event event;
-//      printf("GS = (%lu,%lu,%lu) , LS = (%lu,%lu,%lu)\n", gs_0, gs_1, gs_2, ls_0, ls_1, ls_2 );
+      printf("GS = (%lu,%lu,%lu) , LS = (%lu,%lu,%lu)\n", gs_0, gs_1, gs_2, ls_0, ls_1, ls_2 );
       cl::NDRange global_size( gs_0, gs_1, gs_2 );
       cl::NDRange local_size( ls_0, ls_1, ls_2 );
       
@@ -556,28 +599,8 @@ if(
         nd_range_t ls = { ls_0, ls_1, ls_2 };
         (*_thread_configuration)[ configuration ] = { gs, ls };
       }
-
+      
       return kernel_runtime_in_ns / NUM_EVALUATIONS;
-    }
-
-    cl::Context& context() {
-        return _context;
-    }
-
-    cl::CommandQueue& command_queue() {
-        return _command_queue;
-    }
-
-    std::vector<cl::Buffer>& kernel_buffers() {
-        return _kernel_buffers;
-    }
-
-    std::vector<size_t>& kernel_input_sizes() {
-        return _kernel_input_sizes;
-    }
-
-    void read_last_buffer(size_t size, void* out) {
-        _command_queue.enqueueReadBuffer(_kernel_buffers.back(), CL_TRUE, 0, size, out);
     }
   
   private:
@@ -663,6 +686,8 @@ if(
       
       // set buffer
       _kernel_buffers.push_back( cl::Buffer(ocl_buffer) );
+      
+      create_buffers_impl( args... );
     }
   
   
@@ -719,7 +744,7 @@ if(
         
         auto equal = ( memcmp( dev_buffer_ptr, _gold_ptrs[i], size ) == 0 ) ? true : false;
         
-#if 0 // delete (only for testing)
+#if 1 // delete (only for testing)
 if( !equal )//i == 2 )
 {
  for( size_t j = 0 ; j < size/sizeof(float) ; ++j )

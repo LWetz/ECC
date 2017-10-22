@@ -55,7 +55,7 @@ public:
 
 	void SetArg(size_t idx, int value)
 	{
-		clSetKernelArg(_kernel, idx, sizeof(value), &value);
+		PlatformUtil::checkError(clSetKernelArg(_kernel, idx, sizeof(value), &value));
 	}
 
 	void SetLocalArg(size_t idx, size_t size)

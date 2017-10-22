@@ -26,6 +26,5 @@
 #include "include/cuda_wrapper.hpp"
 #include "include/cpp_cf.hpp"
 
-#include "include/ocl_md_hom_wrapper_class.hpp"
 
 #endif /* atf_h */

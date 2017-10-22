@@ -26,42 +26,42 @@ auto divides( const T& M ) //TODO: ref hier richtig?
 //    return [=]( auto i ){ return false; };
   
 //  return [&]( auto i ){ return M % i == 0; };
-  return [&]( auto i )->bool{ return (M / i) * i == M; };
+  return [=]( auto i )->bool{ return (M / i) * i == M; };
 }
 
 // multiple_of
 template< typename T> //, typename T_res = typename std::conditional_t< std::is_fundamental<T>::value, eval_t<T>, T_res_eval_t<T> >::type >
 auto multiple_of( const T& M )
 {
-  return [&]( auto i )->bool{ return (i / M) * M == i; };
+  return [=]( auto i )->bool{ return (i / M) * M == i; };
 }
 
 // less than
 template< typename T>
 auto less_than( const T& M )
 {
-  return [&]( auto i )->bool{ return i < M; };
+  return [=]( auto i )->bool{ return i < M; };
 }
 
 // greater than
 template< typename T>
 auto greater_than( const T& M )
 {
-  return [&]( auto i )->bool{ return i > M; };
+  return [=]( auto i )->bool{ return i > M; };
 }
 
 // less than or equal
 template< typename T>
 auto less_than_or_eq( const T& M )
 {
-  return [&]( auto i )->bool{ return i <= M; };
+  return [=]( auto i )->bool{ return i <= M; };
 }
 
 // greater than or equal
 template< typename T>
 auto greater_than_or_eq( const T& M )
 {
-  return [&]( auto i )->bool{ return i >= M; };
+  return [=]( auto i )->bool{ return i >= M; };
 }
 
 
@@ -69,7 +69,7 @@ auto greater_than_or_eq( const T& M )
 template< typename T>
 auto equal( const T& M )
 {
-  return [&]( auto i )->bool{ return i == M; };
+  return [=]( auto i )->bool{ return i == M; };
 }
 
 
@@ -77,7 +77,7 @@ auto equal( const T& M )
 template< typename T>
 auto unequal( const T& M )
 {
-  return [&]( auto i )->bool{ return i != M; };
+  return [=]( auto i )->bool{ return i != M; };
 }
 
 
@@ -85,7 +85,7 @@ auto unequal( const T& M )
 
 
 // operators
-template< typename func_t_1, typename func_t_2 > //TODO: type trait: func_t_1 and func_t_2 are callables 
+template<	typename func_t_1, typename func_t_2> // TODO: find error -> "typename = ::std::enable_if_t< atf::is_callable_v<func_t_1> && atf::is_callable_v<func_t_2> > >"
 auto operator&&( func_t_1 lhs, func_t_2 rhs )
 {
   return [=]( auto x )

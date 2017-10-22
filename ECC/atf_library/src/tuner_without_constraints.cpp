@@ -39,8 +39,7 @@ tuner_without_constraints::tuner_without_constraints()
   
 tuner_without_constraints::~tuner_without_constraints()
 {
-//  std::cout << "\nNumber of Tree nodes: " << tp_value_node::number_of_nodes() << std::endl;
-  delete _abort_condition;
+  std::cout << "\nNumber of Tree nodes: " << tp_value_node::number_of_nodes() << std::endl;
 }
 
 

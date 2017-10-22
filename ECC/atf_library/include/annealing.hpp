@@ -13,14 +13,13 @@
 #include <map>
 #include <limits>
 #include <algorithm>
-#include <array>
 
 #include "tuner_with_constraints.hpp"
 #include "tuner_without_constraints.hpp"
 
 #include "helper.hpp"
 
-#define NUM_THREADS                  4
+#define NUM_THREADS                  1
 
 //#define NEIGHBOURS_FRACTION          1              // for large search spaces
 //#define MAX_NEIGHBOURS               300000         // for large search spaces
@@ -70,7 +69,7 @@ class annealing_class : public T
       // Computes the new temperature
       const auto configs_to_visit  = std::max( size_t{1}, static_cast<size_t>( _search_space_size * FRACTION ) ); //TODO: static machen?
       const auto progress          = this->number_of_valid_evaluated_configs() / static_cast<double>( configs_to_visit );
-      const auto temperature       = double{MAX_TEMPERATURE} * std::max( std::numeric_limits<double>::min(),  1.0 - progress );
+      const auto temperature       = double{MAX_TEMPERATURE} * std::max( std::numeric_limits<double>::min(),  1.0 - progress );  // TODO: etwas besser überlegen um die Temperatur zu senken
       
       // init
       static bool flag = true;
@@ -158,10 +157,8 @@ class annealing_class : public T
         const auto chunk_size = _search_space_size / NUM_THREADS;
         
         start[ i ] = i     * chunk_size;
-        end[ i ]   = (i+1) * chunk_size - 1;
+        end[ i ]   = (i+1) * chunk_size;
       }
-      end[ NUM_THREADS - 1 ] =_search_space_size - 1;
-      
       
       auto parallel_neighbour_search = [&]( auto start, auto end, auto neighbours )
                                        {
@@ -183,7 +180,7 @@ class annealing_class : public T
                                            }
                   
                                            // Consider this configuration a neighbour if there is at most a certain amount of differences
-                                           if( differences <= k_MAX_DIFFERENCES )
+                                           if( differences == k_MAX_DIFFERENCES ) // NOTE: "==" requires from the user program to comprise more or equal than k_MAX_DIFFERENCES tuning parameters 
                                              neighbours.get().push_back(i);
                                          }
                                        };

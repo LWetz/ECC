@@ -41,7 +41,7 @@ tuner_with_constraints::tuner_with_constraints()
   
 tuner_with_constraints::~tuner_with_constraints()
 {
-//  std::cout << "\nNumber of Tree nodes: " << tp_value_node::number_of_nodes() << std::endl;
+  std::cout << "\nNumber of Tree nodes: " << tp_value_node::number_of_nodes() << std::endl;
 }
 
 

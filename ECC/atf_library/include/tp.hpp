@@ -32,8 +32,9 @@ class tp_t
   
     // TODO: multiple predicates: "divides(M) && is_multiple_of(2)", etc.
     tp_t( const std::string& name, range_t range, const callable& predicate = [](T){ return true; } )
-      : _name( name ), _range( range ), _predicate( predicate ), _act_elem()
+      : _name( name ), _range( range ), _predicate( predicate ), _act_elem( std::make_shared<T>() )
     {}
+  
   
     std::string name() const
     {
@@ -52,19 +53,19 @@ class tp_t
         if( !_range.next_elem( elem ) )
           return false;
 
-      _act_elem = elem;
+      *_act_elem = elem;
       return true;
     }
   
     operator T() const
     {
-      return _act_elem;
+      return *_act_elem;
     }
   
   
     auto cast() const
     {
-      return _act_elem;
+      return *_act_elem;
     }
   
   
@@ -80,10 +81,10 @@ class tp_t
 //    }
   
   private:
-    const std::string _name;
-          range_t     _range;
-    const callable    _predicate;
-          T           _act_elem;
+    const std::string        _name;
+          range_t            _range;
+    const callable           _predicate;
+          std::shared_ptr<T> _act_elem;
 };
 
 //// required for conversion from tp_t to std::string

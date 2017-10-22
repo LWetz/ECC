@@ -85,7 +85,7 @@ kernel void finalCalc(	global OutputAtom* labelBuffer,
 					addAssignOutputAtomsLoc(localBuffer + localIndex, localBuffer + localIndex + c);
 				}
 				barrier(CLK_LOCAL_MEM_FENCE);
-			}
+			} 
 
 			if (i_wi_chain == 0)
 			{

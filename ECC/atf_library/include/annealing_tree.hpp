@@ -12,6 +12,7 @@
 
 #include <cstring>
 #include <algorithm>
+#include <set>
 
 #include "tuner_with_constraints.hpp"
 #include "tuner_without_constraints.hpp"
@@ -39,9 +40,9 @@ class annealing_1d
     size_t get_next_index()
     {
       // Computes the new temperature
-      const auto configs_to_visit = std::max( size_t{1}, static_cast<size_t>( _range * FRACTION ) );
+      const auto configs_to_visit = std::max( size_t{1}, static_cast<size_t>( _range * FRACTION ) ); //TODO: _range has to be replaced by search_space size !!
       const auto progress         = _number_of_evaluated_configs / static_cast<double>( configs_to_visit );
-      const auto temperature      = double{MAX_TEMPERATURE} * std::max( std::numeric_limits<double>::min(),  1.0 - progress );
+      const auto temperature      = double{MAX_TEMPERATURE} * std::max( std::numeric_limits<double>::min(),  1.0 - progress ); // TODO: etwas besser überlegen um die Temperatur zu senken
       
       // init
       static bool flag = true;
@@ -72,8 +73,8 @@ class annealing_1d
       auto delta      = sign * (random_int % NEIGHBOUR_RANGE );
       
       _neighbour_state = _current_state + delta;
-      _neighbour_state = std::max( size_t{0}, _neighbour_state );
-      _neighbour_state = std::min( _range   , _neighbour_state );
+      _neighbour_state = std::max( size_t{0}  , _neighbour_state );
+      _neighbour_state = std::min( _range - 1 , _neighbour_state );
       
       // Checks whether this neighbour was already visited. If so, calculate a new neighbour instead.
       // This continues up to a maximum number, because all neighbours might already be visited. In
@@ -87,6 +88,7 @@ class annealing_1d
 
       _act_index = _neighbour_state;
       
+      assert( _neighbour_state < _range );
       return _neighbour_state;
     }
   
@@ -137,7 +139,7 @@ class annealing_tree_class : public T
   public:
     template< typename... Ts >
     annealing_tree_class( Ts... params )
-      : T( params... )
+      : T( params... ), _annealings_1d(), _indices()
     {}
   
     annealing_tree_class( const annealing_tree_class&  other ) = default;
@@ -146,28 +148,48 @@ class annealing_tree_class : public T
     void initialize( const search_space& search_space ) // unnecessary: _search_space is initialized in parent "tuner" after call of "operator()( G_classes)"
     {
       size_t num_layers = this->_search_space.num_params();
+
+      // random int generator
+      _generator        = std::default_random_engine( random_seed() );
+      _int_distribution = std::uniform_int_distribution<int>( 0, static_cast<int>( num_layers-1 ) );
       
       for( size_t i = 0 ; i < num_layers ; ++i )
         _annealings_1d.emplace_back( this->_search_space.max_childs( i ) );
+      
+      // get initial tree path
+      for( int i = 0 ; i < _annealings_1d.size() ; ++i )
+      {
+        _indices.emplace_back( _annealings_1d[i].get_next_index() );
+        
+        // adapt indices to the actual number of childs of the considered sub-tree
+        auto shrinked_indices = _indices;
+        shrinked_indices.erase( shrinked_indices.begin() + i, shrinked_indices.begin() + shrinked_indices.size() ); // erease element with an index > i
+        
+        _indices[ i ] = _indices[ i ] % this->_search_space.max_childs_of_node( shrinked_indices );
+      }
+
     }
   
   
     configuration get_next_config()
     {
-      // get indices
-      auto indices = std::vector<size_t>{};
-      for( auto& annealing_search : _annealings_1d )
-        indices.emplace_back( annealing_search.get_next_index() );
+      // get k_MAX_DIFFERENCES random positions for the _indices vector
+      std::set<size_t> random_indices;
+      while( random_indices.size() < k_MAX_DIFFERENCES )
+        random_indices.insert( _int_distribution(_generator) );
       
       // adapt indices to the actual number of childs of the considered sub-tree
-      for( size_t i = 0 ; i < indices.size() ; ++i )
+      //for( auto& i : random_indices )
+      for( int i = 0 ; i < _annealings_1d.size() ; ++i )
       {
-        auto shrinked_indices = indices;
+        _indices[i] = _annealings_1d[ i ].get_next_index();
+        
+        auto shrinked_indices = _indices;
         shrinked_indices.erase( shrinked_indices.begin() + i, shrinked_indices.begin() + shrinked_indices.size() ); // erease element with an index > i
         
-        indices[ i ] = indices[ i ] % this->_search_space.max_childs_of_node( shrinked_indices );
+        _indices[ i ] = _indices[ i ] % this->_search_space.max_childs_of_node( shrinked_indices );
       }
-      configuration config = this->_search_space.get_configuration( indices );
+      configuration config = this->_search_space.get_configuration( _indices );
       
       return config;
     }
@@ -185,6 +207,17 @@ class annealing_tree_class : public T
 
   private:
     std::vector<annealing_1d> _annealings_1d;
+    std::vector<size_t>       _indices;
+
+    std::default_random_engine         _generator;
+    std::uniform_int_distribution<int> _int_distribution;
+  
+    // helper
+    unsigned int random_seed() const
+    {
+      return static_cast<unsigned int>( std::chrono::system_clock::now().time_since_epoch().count() );
+    }
+  
 };
 
 

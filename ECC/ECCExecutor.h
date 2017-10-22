@@ -31,6 +31,7 @@ class ECCExecutor
 
 	size_t oldTime;
 	size_t newTime;
+	size_t newTotalTime;
 
 	std::vector<std::vector<int>> partitionInstances(ECCData& data, EnsembleOfClassifierChains& ecc)
 	{
@@ -111,6 +112,10 @@ public:
 
 	void runBuild(ECCData& data, int forestsPerRun, int ensembleSize, int ensemblesPerRun, int ensembleSubSetSize, int forestSubSetSize)
 	{
+		nodeValueBuffer.clear();
+        	nodeIndexBuffer.clear();
+        	labelOrderBuffer.clear();
+		
 		std::cout << std::endl << "--- BUILD ---" << std::endl;
 		cl_program prog;
 		PlatformUtil::buildProgramFromFile("eccBuild.cl", prog);//("\\\\X-THINK\\Users\\Public\\eccBuild.cl", prog);
@@ -244,8 +249,8 @@ public:
 				++gidMultiplier;
 			}
 		}
-		std::cout << "Build took " << stopWatch.stop() << " ms total." << std::endl;
-		std::cout << "Build took " << totalTime << " ms kernel time." << std::endl;
+		std::cout << "Build took " << ((double)stopWatch.stop())*1e-06 << " ms total." << std::endl;
+		std::cout << "Build took " << ((double)totalTime)*1e-06 << " ms kernel time." << std::endl;
 
 		tmpNodeIndexBuffer.clear();
 		tmpNodeValueBuffer.clear();
@@ -283,7 +288,7 @@ public:
 	{
 		std::cout << std::endl << "--- NEW CLASSIFICATION ---" << std::endl;
 		std::string optionString;
-		std::stringstream strstr;		
+		std::stringstream strstr;
 		for (auto it=params.begin(); it!=params.end(); ++it)
 			strstr << " -D " << it->first << "=" << it->second;
 		optionString = strstr.str();
@@ -378,7 +383,7 @@ public:
                 if(!sizesok)
                 {
                         std::cout << "Workgroup too large" << std::endl;
-                        newTime = std::numeric_limits<int>::max();
+                        newTime = newTotalTime = std::numeric_limits<int>::max();
 
 			for (int n = 0; n < data.getLabelCount()*data.getSize(); ++n)
                 	{
@@ -386,10 +391,18 @@ public:
         	                votes.push_back(0);
 	                }
 
+		        dataBuffer.clear();
+        	        resultBuffer.clear();
+        	        labelBuffer.clear();
+        	        stepIntermediateBuffer.clear();
+	                finalIntermediateBuffer.clear();
+
                         return;
                 }
 
 		size_t SCTime = 0.0, SRTime = 0.0, FCTime = 0.0, FRTime = 0.0;
+		Util::StopWatch stopWatch;
+		stopWatch.start();
 		for (int chainIndex = 0; chainIndex < chainSize; ++chainIndex)
 		{
 			stepCalcKernel->SetArg(3, chainIndex);
@@ -404,14 +417,15 @@ public:
 
 		FCTime = finalCalcKernel->getRuntime();
 		FRTime = finalReduceKernel->getRuntime();
+		newTotalTime = stopWatch.stop();
 		newTime = SCTime + SRTime + (measureStep ? 0 : (FCTime + FRTime));
 		std::cout << "Classification kernel took " << ((double)newTime * 1e-06) << " ms."
 			<< "\n\tstepCalc: " << ((double)SCTime * 1e-06) 
 			<< "\n\tstepReduce: " << ((double)SRTime * 1e-06)
 			<< "\n\tfinalCalc: " << ((double)FCTime * 1e-06)
 			<< "\n\tfinalReduce: " << ((double)FRTime * 1e-06)
-			<< std::endl;
-		
+			<< std::endl;		
+		std::cout << "Total time: " << ((double)newTotalTime*1e-06) << std::endl;
 		resultBuffer.read();
 
 		bool all0 = true;
@@ -435,11 +449,11 @@ public:
 		delete finalReduceKernel;
 	}
 
-	void runClassifyOld(ECCData& data, std::vector<double>& values, std::vector<int>& votes)
+	void runClassifyOld(ECCData& data, std::vector<double>& values, std::vector<int>& votes, bool fix=true)
 	{
-		std::cout << std::endl << "--- OLD CLASSIFICATION ---" << std::endl;
+		std::cout << std::endl << "--- " << (fix ? "FIXED" : "OLD") << " CLASSIFICATION ---" << std::endl;
 		cl_program prog;
-		PlatformUtil::buildProgramFromFile("OldKernels/eccClassify_fix.cl", prog);
+		PlatformUtil::buildProgramFromFile(fix ? "OldKernels/eccClassify_fix.cl" : "OldKernels/eccClassify.cl", prog);
 		Kernel* classifyKernel = new Kernel(prog, "eccClassify");
 		clReleaseProgram(prog);
 
@@ -463,6 +477,7 @@ public:
 		ConstantBuffer chainSizeBuffer(chainSize);
 		ConstantBuffer ensembleSizeBuffer(ensembleSize);
 		ConstantBuffer numValuesBuffer(numValues);
+
 
 		classifyKernel->SetArg(0, nodeValueBuffer, true);
 		classifyKernel->SetArg(1, nodeIndexBuffer, true);
@@ -501,7 +516,7 @@ public:
 		voteBuffer.clear();
 		maxLevelBuffer.clear();
 		forestSizeBuffer.clear();
-		chainSizeBuffer.clear();
+		chainSizeBuffer.clear(); 
 		ensembleSizeBuffer.clear();
 		numValuesBuffer.clear();
 
@@ -513,9 +528,19 @@ public:
 		return oldTime / newTime;
 	}
 
-	double getNewTime()
+	size_t getNewTime()
 	{
 		return newTime;
+	}
+
+	size_t getNewTotalTime()
+	{
+		return newTotalTime;
+	}
+
+	size_t getOldTime()
+	{
+		return oldTime;
 	}
 
 	~ECCExecutor()

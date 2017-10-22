@@ -120,6 +120,8 @@ void ArffParser::_read_attr() {
 
 void ArffParser::_read_instances() {
     bool end_of_file = false;
+	bool sparse_mode = false;
+	int32 index = -1;
     int32 num = m_data->num_attributes();
     while(!end_of_file) {
         ArffInstance* inst = new ArffInstance();
@@ -131,11 +133,66 @@ void ArffParser::_read_instances() {
                 end_of_file = true;
                 break;
             }
+			if (sparse_mode && type == BRKT_CLOSE)
+			{
+				if (index != -1)
+					THROW("Invalid sparse format");
+				sparse_mode = false;
+				
+				break;
+			}
+			if (type == BRKT_OPEN)
+			{
+				if(sparse_mode)
+					THROW("Invalid sparse format");
+				//Sparse instance
+				for (int32 j = 0; j < num; ++j) {
+					ArffValueEnum aType = m_data->get_attr(j)->type();
+					if (aType == NUMERIC) {
+						inst->add(new ArffValue("0", true));
+					}
+					else if ((aType == STRING) || (aType == NOMINAL)) {
+						inst->add(new ArffValue("0", false));
+					}
+					else { // has to be DATE type!
+						inst->add(new ArffValue("0", false, true));
+					}
+				}
+				sparse_mode = true;
+				continue;
+			}
             if((type != VALUE_TOKEN) && (type != MISSING_TOKEN)) {
                 THROW("%s expects '%s' or '%s', it is '%s'!",
                       "ArffParser::_read_instances", "VALUE_TOKEN",
                       "MISSING_TOKEN", arff_token2str(type).c_str());
             }
+			if (sparse_mode)
+			{
+				if (index == -1)
+				{
+					if (type == MISSING_TOKEN)
+						THROW("Invalid sparse format");
+					index = tok.token_int32();
+				}
+				else
+				{
+					ArffValueEnum aType = m_data->get_attr(index)->type();
+					if (type == MISSING_TOKEN) {
+						*(inst->get(index)) = ArffValue(aType);
+					}
+					else if (aType == NUMERIC) {
+						*(inst->get(index)) = ArffValue(tok.token_str(), true);
+					}
+					else if ((aType == STRING) || (aType == NOMINAL)) {
+						*(inst->get(index)) = ArffValue(tok.token_str(), false);
+					}
+					else { // has to be DATE type!
+						*(inst->get(index)) = ArffValue(tok.token_str(), false, true);
+					}
+					index = -1;
+				}
+				continue;
+			}
             if(type == MISSING_TOKEN) {
                 inst->add(new ArffValue(aType));
             }

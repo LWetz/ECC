@@ -23,8 +23,7 @@ class tp_value
     tp_value() = default;
   
     tp_value& operator=( const tp_value& other ) = default;
-
-  
+    
     tp_value( const std::string& name, const value_type& value, void* tp_value_ptr );
   
     // read / write
@@ -37,6 +36,9 @@ class tp_value
     const std::string& name()  const;
     const value_type&  value() const;
   
+  
+    void update_tp() const;
+  
     template< typename T >
     operator T()
     {
@@ -48,6 +50,8 @@ class tp_value
     {
       return static_cast<std::string>( _value );
     }
+
+
 
   
   private:

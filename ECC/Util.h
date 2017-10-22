@@ -16,7 +16,7 @@ namespace Util
 
 	public:
 		void start();
-		double stop();
+		size_t stop();
 	};
 
 	int randomInt(int min, int max);

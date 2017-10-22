@@ -103,7 +103,7 @@ class tuner_with_constraints : public tuner
 
     template< typename callable >
 //          typename T, typename range_t, typename tp_callable, std::enable_if_t<( !std::is_same<callable, tp_t<T,range_t,tp_callable> >::value )>* = nullptr >
-    configuration operator()( callable& program ); // program must take config_t and return a size_t
+    configuration operator()( callable program ); // program must take config_t and return a size_t
 
     std::chrono::high_resolution_clock::time_point tuning_start_time() const;
 

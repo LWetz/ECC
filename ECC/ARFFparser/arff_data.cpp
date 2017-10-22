@@ -1,5 +1,5 @@
 #include "arff_data.h"
-
+#include <iostream>
 
 
 ArffData::ArffData(): m_rel(""),
@@ -24,6 +24,7 @@ ArffData::~ArffData() {
             delete *itr;
         }
     }
+    std::cout << "data deleted" << std::endl;
 }
 
 void ArffData::set_relation_name(const std::string& name) {

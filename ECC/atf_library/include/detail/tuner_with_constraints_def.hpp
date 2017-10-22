@@ -11,6 +11,7 @@
 
 #include <fstream>
 #include <limits>
+#include <chrono>
 
 
 namespace atf
@@ -72,7 +73,7 @@ tuner_with_constraints& tuner_with_constraints::operator()( G_class<Ts...> G_cla
 
 
 template< typename callable >
-configuration tuner_with_constraints::operator()( callable& program ) // func must take config_t and return a value for which "<" is defined.
+configuration tuner_with_constraints::operator()( callable program ) // func must take config_t and return a value for which "<" is defined.
 {
   std::cout << "\nsearch space size: " << _search_space.num_configs() << std::endl << std::endl;
   
@@ -87,9 +88,34 @@ configuration tuner_with_constraints::operator()( callable& program ) // func mu
   
   size_t program_runtime = std::numeric_limits<size_t>::max();
   
+  // logging: cost
+  std::ofstream outfile_cost;
+  outfile_cost.open( "/Users/arirasch/cost.csv", std::ofstream::app );
+  
+  // logging: meta
+  std::ofstream outfile_meta;
+  outfile_meta.open( "/Users/arirasch/meta.csv", std::ofstream::app );
+  
+  auto start_time = std::chrono::system_clock::now();
+  
   while( !_abort_condition->stop( *this ) )
   {
     auto config = get_next_config();
+    
+    // logging: write headers
+    static bool first_run = true;
+    if( first_run )
+    {
+      // cost
+      for( auto& tp : config )
+        outfile_cost << tp.first << ";";
+      outfile_cost << "cost" << std::endl;
+      
+      // meta
+      outfile_meta << "number_of_evaluated_configs" << ";" << "number_of_valid_evaluated_configs" << ";" << "number_of_invalid_evaluated_configs"                                           << ";" << "evaluations_required_to_find_best_found_result" << ";" << "valid_evaluations_required_to_find_best_found_result"<< ";" << std::endl;
+      
+      first_run = false;
+    }
     
     ++_number_of_evaluated_configs;
     try
@@ -120,8 +146,18 @@ configuration tuner_with_constraints::operator()( callable& program ) // func mu
     report_result( program_runtime ); // TODO: refac "program_runtime" -> "program_cost"
     
 //    #ifdef VERBOSE
-    std::cout << /*std::endl << */"evaluated configs: " << this->number_of_evaluated_configs() << " , valid configs: " << this->number_of_valid_evaluated_configs() << " , program cost: " << program_runtime << " , current best result: " << this->best_measured_result() << std::endl << std::endl;
+    std::cout << std::endl << "evaluated configs: " << this->number_of_evaluated_configs() << " , valid configs: " << this->number_of_valid_evaluated_configs() << " , program cost: " << program_runtime << " , current best result: " << this->best_measured_result() << std::endl << std::endl;
 //    #endif
+
+    // logging: cost
+    if( start_time + std::chrono::seconds(1) <= std::chrono::system_clock::now() )
+    {
+      start_time += std::chrono::seconds(1);
+      
+      for( auto& tp : this->best_configuration() )
+        outfile_cost << tp.second << ";";
+      outfile_cost << this->best_measured_result() << std::endl;
+    }
   }
   
   finalize();
@@ -145,20 +181,12 @@ configuration tuner_with_constraints::operator()( callable& program ) // func mu
   }
   std::cout << " ] with cost: " << this->best_measured_result() << std::endl << std::endl;
 
-  // store best found result in file
-  std::stringstream tp_names;
-  std::stringstream tp_vals;
-  for( auto& tp : best_config )
-  {
-    tp_names << tp.first  << ";";
-    tp_vals  << tp.second << ";";
-  }
+  // logging: cost
+  outfile_cost.close();
   
-  std::ofstream outfile;
-  outfile.open("results.csv", std::ofstream::app ); // TODO: "/Users/arirasch/results.csv"
-  outfile << "best_measured_result" << ";" << "number_of_valid_evaluated_configs" << ";" << "evaluations_required_to_find_best_found_result" << ";" << "valid_evaluations_required_to_find_best_found_result" ";" << tp_names.str() << std::endl;
-  outfile << this->best_measured_result() << ";" << this->number_of_valid_evaluated_configs() << ";" << _evaluations_required_to_find_best_found_result << ";" << _valid_evaluations_required_to_find_best_found_result << ";" << tp_vals.str() << std::endl;
-  outfile.close();
+  // logging: meta
+  outfile_meta << this->number_of_evaluated_configs() << ";" << this->number_of_valid_evaluated_configs() << ";" << this->number_of_evaluated_configs() - this->number_of_valid_evaluated_configs() << ";" << _evaluations_required_to_find_best_found_result  << ";" << _valid_evaluations_required_to_find_best_found_result << ";" << std::endl;
+  outfile_meta.close();
   
   auto best_configuration = std::get<1>( _history.back() );
   return best_configuration;
@@ -225,7 +253,7 @@ void tuner_with_constraints::generate_single_config_tree( tp_t<T,range_t,callabl
   T value;
   while( tp.get_next_value(value) )
   {
-    auto value_tp_pair = std::make_pair( value, static_cast<void*>( &(tp._act_elem) ) );
+    auto value_tp_pair = std::make_pair( value, static_cast<void*>( tp._act_elem.get() /*&(tp._act_elem)*/ ) );
     generate_single_config_tree< TREE_ID, TREE_DEPTH-1 >( tps..., value_tp_pair );
   }
 }

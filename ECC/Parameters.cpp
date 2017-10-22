@@ -1,5 +1,6 @@
 #include "ECCExecutor.h" 
 #include "atf_library/atf.h" 
+#include <fstream>
 
 #define NUM_CHAINS 8 
 #define NUM_TREES 8 
@@ -8,8 +9,10 @@
 ECCExecutor *ecc; 
 ECCData *evalData; 
 std::vector<MultilabelInstance> evalCopy; 
-std::vector<double> valOld, valNew; 
-std::vector<int> voteOld, voteNew; 
+std::vector<double> valOld, valNew, valFixed; 
+std::vector<int> voteOld, voteNew, voteFixed; 
+
+std::ofstream outfile;
 
 int numAttributes = 0; 
 int numLabels = 0; 
@@ -34,29 +37,32 @@ size_t tune(atf::configuration config){
     params["NUM_WI_INSTANCES_FR"] = params["NUM_WI_INSTANCES_FC"];
 	ecc->runClassifyNew(*evalData, valNew, voteNew, params, measureStep);
 	bool sameResult = true;
-	size_t hitsOld = 0, hitsNew = 0;
+	size_t hitsOld = 0, hitsNew = 0, hitsFixed = 0;
         for (int i = 0; i < evalCopy.size(); ++i)
         {
         	MultilabelInstance iOrig = evalCopy[i];
         	int numL = iOrig.getNumLabels();
         	for (int l = 0; l < iOrig.getNumLabels(); ++l)
        		{
-        		if (abs(valOld[i*numL + l] - valNew[i*numL + l]) > 0.001)
-        			sameResult = false;//std::cout << valOld[i*numL+l] << "|" <<  valNew[i*numL+l] << std::endl;}
-        		if (abs(voteOld[i*numL + l] - voteNew[i*numL + l]) > 0.001)
-				sameResult = false;//std::cout << valOld[i*numL+l] << "|" <<  valNew[i*numL+l] << std::endl;}
-        		double predNew = valNew[i*numL + l] > 0 ? 1.0 : 0.0;
+        		if (abs(valFixed[i*numL + l] - valNew[i*numL + l]) > 0.001)
+        			{ sameResult = false;}// std::cout << valFixed[i*numL+l] << "|" <<  valNew[i*numL+l] << std::endl;}
+        		if (abs(voteFixed[i*numL + l] - voteNew[i*numL + l]) > 0.001)
+				{ sameResult = false;}// std::cout << valFixed[i*numL+l] << "|" <<  valNew[i*numL+l] << std::endl;}
+			double predNew = valNew[i*numL + l] > 0 ? 1.0 : 0.0;
         		double predOld = valOld[i*numL + l] > 0 ? 1.0 : 0.0;
+			double predFixed = valFixed[i*numL+l] > 0 ? 1.0 : 0.0;
         		if (predOld == iOrig.getData()[l + iOrig.getNumAttribs()])
         			hitsOld++;
         		if (predNew == iOrig.getData()[l + iOrig.getNumAttribs()])
         			hitsNew++;
+			if (predFixed == iOrig.getData()[l + iOrig.getNumAttribs()])
+                                hitsFixed++;
         	}
         }
 	std::cout << "Time: " << ecc->getNewTime() << std::endl;
 	std::cout << "Same Result: " << std::boolalpha << sameResult << std::endl;
-	std::cout << "Prediction Performance: Old " << ((float)hitsOld / (evalCopy.size()*evalCopy[0].getNumLabels()))*100.0 << "% | New " << ((float)hitsNew / (evalCopy.size()*evalCopy[0].getNumLabels()))*100.0 << "%" << std::endl;
-	return ecc->getNewTime();
+	std::cout << "Prediction Performance: Old " << ((float)hitsOld / (evalCopy.size()*evalCopy[0].getNumLabels()))*100.0 << "% | New " << ((float)hitsNew / (evalCopy.size()*evalCopy[0].getNumLabels()))*100.0 << "% | Fixed " << ((float)hitsFixed / (evalCopy.size()*evalCopy[0].getNumLabels()))*100.0 << "%" << std::endl;
+	return measureStep ? ecc->getNewTime() : ecc->getNewTotalTime();
 }
 
 
@@ -136,6 +142,16 @@ void tuneClassify() {
 		G(tp_NUM_WG_INSTANCES_FC, tp_NUM_WI_INSTANCES_FC),
 		G(tp_NUM_WG_LABELS_FC, tp_NUM_WI_LABELS_FC)
 	)(tune);
+
+	outfile << "Best config:" << std::endl;
+	for (auto it = best_config.begin(); it!=best_config.end(); ++it)
+                outfile << "    " << it->first << " = " << it->second << std::endl;
+
+        for (auto it = best_config2.begin(); it!=best_config2.end(); ++it)
+                outfile << "    " << it->first << " = " << it->second << std::endl;
+
+	outfile << "Best time:" << ((double)tuner2.best_measured_result()) * 1e-06 << "ms" << std::endl << std::endl;
+
 }
 int main(int argc, char* argv[]) {
 	std::cout << "START" << std::endl;
@@ -147,14 +163,45 @@ int main(int argc, char* argv[]) {
         std::cout << "Platform created!" << std::endl;
 
 	std::map<std::string, size_t> dataSets;
-	dataSets["data/yeast.arff"] = 14;
-	dataSets["data/scene.arff"] = 6;
+	dataSets["data/Arts1.arff"] = 26;
+	dataSets["data/bibtex.arff"] = 159;
+	dataSets["data/bookmarks.arff"] = 208;
+	dataSets["data/Buisness1.arff"] = 30;
+	dataSets["data/CAL500.arff"] = 174;
+	dataSets["data/Computers1.arff"] = 33;
+	dataSets["data/Corel5k.arff"] = 374;
+	dataSets["data/delicious.arff"] = 983;
+	dataSets["data/Education1.arff"] = 33;
+	dataSets["data/emotions.arff"] = 6;
+	dataSets["data/enron.arff"] = 53;
+	dataSets["data/Entertainment1.arff"] = 33;
+	dataSets["data/flags.arff"] = 7;
+	dataSets["data/genbase.arff"] = 27;
+	dataSets["data/Health1.arff"] = 32;
+	dataSets["data/mediamill.arff"] = 101;
+	dataSets["data/medical.arff"] = 45;
 	dataSets["data/NNRTI.arff"] = 3;
+	dataSets["data/Recreation1.arff"] = 22;
+	dataSets["data/Reference1.arff"] = 33;
+	dataSets["data/scene.arff"] = 6;
+	dataSets["data/Science1.arff"] = 40;
+	dataSets["data/Social1.arff"] = 39;
+	dataSets["data/Society1.arff"] = 27;
+	dataSets["data/tmc2007.arff"] = 22;
+	dataSets["data/yeast.arff"] = 14;
+
+	outfile = std::ofstream("results.txt");
+	outfile << "NUM_CHAINS = " << NUM_CHAINS << std::endl;
+	outfile << "NUM_TREES = " << NUM_TREES << std::endl;
+	outfile << "MAX_LEVEL = " << MAX_LEVEL << std::endl << std::endl;
 
 	for(auto it=dataSets.begin(); it!=dataSets.end(); ++it)
 	{
 		std::cout << "Dataset: " << it->first << std::endl;
+		outfile << "Dataset: " << it->first << std::endl;
+		try{
 		ECCData data(it->second, it->first);
+		outfile << "instances: " << data.getSize() << " attribute: " << data.getAttribCount() << " labels: " << data.getLabelCount() << std::endl;
 		int trainSize = 0.67 * data.getSize();
 		int evalSize = data.getSize() - trainSize;
 		std::vector<MultilabelInstance> inputCopy = data.getInstances();
@@ -184,7 +231,10 @@ int main(int argc, char* argv[]) {
 		evalData = new ECCData(evalInstances, data.getAttribCount(), data.getLabelCount());
 		ecc = new ECCExecutor(MAX_LEVEL, evalInstances[0].getValueCount(), NUM_TREES);
 		ecc->runBuild(trainData, NUM_TREES, NUM_CHAINS, NUM_CHAINS, 100, 50);
-		ecc->runClassifyOld(*evalData, valOld, voteOld);
+		ecc->runClassifyOld(*evalData, valOld, voteOld, false);
+		outfile << "Old time: " <<  ((double)ecc->getOldTime()) * 1e-06 << "ms" << std::endl;
+                ecc->runClassifyOld(*evalData, valFixed, voteFixed, true);
+                outfile << "Old time fixed: " <<  ((double)ecc->getOldTime()) * 1e-06 << "ms" << std::endl;
 		numLabels = evalData->getLabelCount();
 		numAttributes = evalData->getAttribCount();
 		numInstances = evalData->getInstances().size();
@@ -193,7 +243,14 @@ int main(int argc, char* argv[]) {
 		delete evalData;
 		valOld.clear();
 		voteOld.clear();
+		valFixed.clear();
+		voteFixed.clear();
 		evalCopy.clear();
+                }catch(...)
+                {
+                        continue;
+                }
+
 	}
 	PlatformUtil::deinit();
 	system("Pause");

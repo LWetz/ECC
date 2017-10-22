@@ -33,13 +33,14 @@ namespace atf
 class value_type
 {
   public:
-    enum type_id_t { root_t, int_t, size_t_t, float_t, double_t, string_t };
+    enum type_id_t { root_t, bool_t, int_t, size_t_t, float_t, double_t, string_t };
   
     type_id_t type_id() const;
   
     // ctors
     value_type();
   
+    value_type( const bool&        b   );
     value_type( const int&         i   );
     value_type( const size_t&      s_t );
     value_type( const float&       f   );
@@ -50,6 +51,7 @@ class value_type
 
   
     // access values
+    bool        bool_val()   const;
     int         int_val()    const;
     size_t      size_t_val() const;
     float       float_val()  const;
@@ -68,6 +70,7 @@ class value_type
   
   
     // implicit cast operators
+    operator bool()        const;
     operator int()         const;
     operator size_t()      const;
     operator float()       const;
@@ -89,6 +92,7 @@ class value_type
   
     union //value_t
     {
+      bool        _bool_val;
       int         _int_val;
       size_t      _size_t_val;
       float       _float_val;
