@@ -106,8 +106,7 @@ void tuneClassify() {
 	config["NUM_WI_TREES_SC"] = 1;
 	config["NUM_WI_TREES_SR"] = 8;*/ 
 	//tune(config);
-	// auto tuner = atf::exhaustive();
-	auto tuner = atf::open_tuner(atf::cond::evaluations(1000));
+	auto tuner =  atf::exhaustive();//atf::open_tuner(atf::cond::evaluations(1000));
 	auto best_config = tuner(
 		G(tp_NUM_WG_CHAINS_SC, tp_NUM_WI_CHAINS_SC),
 		G(tp_NUM_WG_INSTANCES_SC, tp_NUM_WI_INSTANCES_SC),
@@ -136,7 +135,7 @@ void tuneClassify() {
 
 	measureStep = false;
 
-	auto tuner2 = atf::open_tuner(atf::cond::evaluations(1000));
+	auto tuner2 = atf::exhaustive();
 	auto best_config2 = tuner2(
 		G(tp_NUM_WG_CHAINS_FC, tp_NUM_WI_CHAINS_FC, tp_NUM_WI_CHAINS_FR),
 		G(tp_NUM_WG_INSTANCES_FC, tp_NUM_WI_INSTANCES_FC),
@@ -155,7 +154,15 @@ void tuneClassify() {
 }
 int main(int argc, char* argv[]) {
 	std::cout << "START" << std::endl;
-        if(!PlatformUtil::init("NVIDIA", "GTX"))
+	
+	std::string pname = "NVIDIA";
+	std::string dname = "k20";
+	if(argc > 1)
+		dname = argv[1];
+	if(argc > 2)
+		pname = argv[2];
+
+        if(!PlatformUtil::init(pname, dname))
 	{
 		PlatformUtil::deinit();
 		return -1;
@@ -163,34 +170,26 @@ int main(int argc, char* argv[]) {
         std::cout << "Platform created!" << std::endl;
 
 	std::map<std::string, size_t> dataSets;
-	dataSets["data/Arts1.arff"] = 26;
 	dataSets["data/bibtex.arff"] = 159;
 	dataSets["data/bookmarks.arff"] = 208;
-	dataSets["data/Buisness1.arff"] = 30;
 	dataSets["data/CAL500.arff"] = 174;
-	dataSets["data/Computers1.arff"] = 33;
 	dataSets["data/Corel5k.arff"] = 374;
-	dataSets["data/delicious.arff"] = 983;
-	dataSets["data/Education1.arff"] = 33;
+	//dataSets["data/delicious.arff"] = 983;
 	dataSets["data/emotions.arff"] = 6;
 	dataSets["data/enron.arff"] = 53;
-	dataSets["data/Entertainment1.arff"] = 33;
 	dataSets["data/flags.arff"] = 7;
 	dataSets["data/genbase.arff"] = 27;
-	dataSets["data/Health1.arff"] = 32;
 	dataSets["data/mediamill.arff"] = 101;
 	dataSets["data/medical.arff"] = 45;
 	dataSets["data/NNRTI.arff"] = 3;
-	dataSets["data/Recreation1.arff"] = 22;
-	dataSets["data/Reference1.arff"] = 33;
 	dataSets["data/scene.arff"] = 6;
-	dataSets["data/Science1.arff"] = 40;
-	dataSets["data/Social1.arff"] = 39;
-	dataSets["data/Society1.arff"] = 27;
 	dataSets["data/tmc2007.arff"] = 22;
 	dataSets["data/yeast.arff"] = 14;
 
-	outfile = std::ofstream("results.txt");
+//	dataSets.clear();
+//	dataSets["data/bibtex.arff"] = 159;
+	
+	outfile = std::ofstream("results_"+pname+"_"+dname+".txt");
 	outfile << "NUM_CHAINS = " << NUM_CHAINS << std::endl;
 	outfile << "NUM_TREES = " << NUM_TREES << std::endl;
 	outfile << "MAX_LEVEL = " << MAX_LEVEL << std::endl << std::endl;
@@ -199,7 +198,7 @@ int main(int argc, char* argv[]) {
 	{
 		std::cout << "Dataset: " << it->first << std::endl;
 		outfile << "Dataset: " << it->first << std::endl;
-		try{
+		//try{
 		ECCData data(it->second, it->first);
 		outfile << "instances: " << data.getSize() << " attribute: " << data.getAttribCount() << " labels: " << data.getLabelCount() << std::endl;
 		int trainSize = 0.67 * data.getSize();
@@ -246,10 +245,11 @@ int main(int argc, char* argv[]) {
 		valFixed.clear();
 		voteFixed.clear();
 		evalCopy.clear();
-                }catch(...)
-                {
-                        continue;
-                }
+                //}catch(std::exception e)
+                //{
+		//	std::cout << e.what() << std::endl;
+                //        continue;
+                //}
 
 	}
 	PlatformUtil::deinit();

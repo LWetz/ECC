@@ -251,6 +251,7 @@ public:
 		}
 		std::cout << "Build took " << ((double)stopWatch.stop())*1e-06 << " ms total." << std::endl;
 		std::cout << "Build took " << ((double)totalTime)*1e-06 << " ms kernel time." << std::endl;
+		PlatformUtil::finish();
 
 		tmpNodeIndexBuffer.clear();
 		tmpNodeValueBuffer.clear();
@@ -397,6 +398,11 @@ public:
         	        stepIntermediateBuffer.clear();
 	                finalIntermediateBuffer.clear();
 
+			delete stepCalcKernel;
+			delete stepReduceKernel;
+			delete finalCalcKernel;
+			delete finalReduceKernel;
+
                         return;
                 }
 
@@ -426,6 +432,8 @@ public:
 			<< "\n\tfinalReduce: " << ((double)FRTime * 1e-06)
 			<< std::endl;		
 		std::cout << "Total time: " << ((double)newTotalTime*1e-06) << std::endl;
+		
+		PlatformUtil::finish();
 		resultBuffer.read();
 
 		bool all0 = true;
@@ -548,6 +556,7 @@ public:
 		nodeIndexBuffer.clear();
 		nodeValueBuffer.clear();
 		labelOrderBuffer.clear();
+		delete ecc;
 	}
 };
 

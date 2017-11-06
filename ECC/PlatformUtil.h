@@ -160,6 +160,11 @@ public:
 		return device;
 	}
 
+	static void finish()
+	{
+		checkError(clFinish(getCommandQueue()));
+	}
+	
 	~PlatformUtil();
 };
 

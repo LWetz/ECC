@@ -1,0 +1,8 @@
+NUM_CHAINS = 8
+NUM_TREES = 8
+MAX_LEVEL = 10
+
+Dataset: data/CAL500.arff
+instances: 502 attribute: 68 labels: 174
+Old time: 108.598ms
+Old time fixed: 108.536ms

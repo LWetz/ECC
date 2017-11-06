@@ -69,10 +69,11 @@ void ArffParser::_read_attrs() {
 void ArffParser::_read_attr() {
     // name
     ArffToken name = m_lexer->next_token();
-    if(name.token_enum() != VALUE_TOKEN) {
+    if(name.token_enum() != VALUE_TOKEN && name.token_enum() != DATE_TOKEN) {
         THROW("%s: 'ATTRIBUTE' must be followed by a '%s'! It is '%s'",
               "ArffParser::_read_attr", "VALUE_TOKEN",
               arff_token2str(name.token_enum()).c_str());
+	      printf("HERERERER\n");
     }
     // type
     ArffToken type = m_lexer->next_token();

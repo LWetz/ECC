@@ -66,7 +66,9 @@ public:
 	{
 		delete[] data;
 		if (memObj != NULL)
-			clReleaseMemObject(memObj);
+		{
+			PlatformUtil::checkError(clReleaseMemObject(memObj));
+		}
 	}
 };
 

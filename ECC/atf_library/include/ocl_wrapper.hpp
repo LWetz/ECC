@@ -32,8 +32,8 @@
 #include "helper.hpp"
 
 
-#define NUM_EVALUATIONS  1
-#define WARM_UPS         0
+#define NUM_EVALUATIONS  3
+#define WARM_UPS         1
 
 
 namespace
