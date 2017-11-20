@@ -36,10 +36,19 @@ public:
 		PlatformUtil::checkError(clEnqueueWriteBuffer(PlatformUtil::getCommandQueue(), memObj, CL_TRUE, 0, size, data, 0, NULL, NULL));
 	}
 
+	void writeFrom(void* buffer, size_t buffSize)
+	{
+		PlatformUtil::checkError(clEnqueueWriteBuffer(PlatformUtil::getCommandQueue(), memObj, CL_TRUE, 0, buffSize, buffer, 0, NULL, NULL));
+	}
+
 	void read()
 	{
-		
 		PlatformUtil::checkError(clEnqueueReadBuffer(PlatformUtil::getCommandQueue(), memObj, CL_TRUE, 0, size, data, 0, NULL, NULL));
+	}
+
+	void readTo(void* buffer, size_t buffSize)
+	{
+		PlatformUtil::checkError(clEnqueueReadBuffer(PlatformUtil::getCommandQueue(), memObj, CL_TRUE, 0, buffSize, buffer, 0, NULL, NULL));
 	}
 
 	cl_mem_flags getFlags() const

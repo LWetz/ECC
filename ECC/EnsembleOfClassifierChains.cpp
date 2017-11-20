@@ -22,9 +22,9 @@ EnsembleOfClassifierChains::EnsembleOfClassifierChains(int _numValues, int _numL
 	}
 }
 
-std::vector<std::vector<int>> EnsembleOfClassifierChains::partitionInstanceIndices(int maxIndex)
+std::vector<int> EnsembleOfClassifierChains::partitionInstanceIndices(int maxIndex)
 {
-	auto instances = std::vector<std::vector<int>>();
+	auto instances = std::vector<int>();
 
 	for (int chain = 0; chain < ensembleSize; chain++)
 	{
@@ -47,7 +47,7 @@ std::vector<std::vector<int>> EnsembleOfClassifierChains::partitionInstanceIndic
 					treeInstances.erase(treeInstances.begin() + Util::randomInt(treeInstances.size()));
 				}
 
-				instances.push_back(treeInstances);
+				instances.insert(instances.end(), treeInstances.begin(), treeInstances.end());
 			}
 		}
 	}

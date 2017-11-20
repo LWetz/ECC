@@ -22,7 +22,7 @@ private:
 	std::vector<ClassifierChain> chains;
 public:
 	EnsembleOfClassifierChains(int _numValues, int _numLabels, int _maxLevel, int _forestSize, int _ensembleSize, int _ensembleSubSetSize, int _forestSubSetSize);
-	std::vector<std::vector<int>> partitionInstanceIndices(int maxIndex);
+	std::vector<int> partitionInstanceIndices(int maxIndex);
 
 	const std::vector<ClassifierChain>& getChains();
 	int getNumValues();
