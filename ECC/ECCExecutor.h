@@ -526,8 +526,8 @@ public:
 		}
 
 		OutputAtom* allResults = new OutputAtom[data.getLabelCount()*data.getSize()];
-		size_t SCTime = 0.0, SRTime = 0.0, FCTime = 0.0, FRTime = 0.0;
-		size_t SCLTime = 0.0, SRLTime = 0.0, FCLTime = 0.0, FRLTime = 0.0;
+		double SCTime = 0.0, SRTime = 0.0, FCTime = 0.0, FRTime = 0.0;
+		double SCLTime = 0.0, SRLTime = 0.0, FCLTime = 0.0, FRLTime = 0.0;
 		Util::StopWatch stopWatch;
 		stopWatch.start();
 		size_t instances;
