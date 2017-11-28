@@ -30,8 +30,12 @@ class ECCExecutor
 	int maxAttributes;
 
 	size_t oldTime;
-	size_t newTime;
-	size_t newTotalTime;
+	size_t newLoopStepTime;
+	size_t newLoopFinalTime;
+	size_t newRemainStepTime;
+	size_t newRemainFinalTime;
+	size_t newKernelTime;
+	size_t newCPUTime;
 
 	std::vector<int> partitionInstances(ECCData& data, EnsembleOfClassifierChains& ecc)
 	{
@@ -276,7 +280,7 @@ public:
 		return memory / ((attribCount + labelCount) * sizeof(double) + labelCount * ((1u + 2u * ensembleSize) + ensembleSize*forestSize) * sizeof(OutputAtom));
 	}
 
-	void runClassifyNew(ECCData& data, size_t instancesPerRun, std::vector<double>& values, std::vector<int>& votes, std::map<std::string, int>& params, bool measureStep = false)
+	void runClassifyNew(ECCData& data, std::vector<double>& values, std::vector<int>& votes, std::map<std::string, int>& params)
 	{
 		std::cout << std::endl << "--- NEW CLASSIFICATION ---" << std::endl;
 		std::string optionString;
@@ -304,9 +308,9 @@ public:
 		Kernel* finalReduceKernel = new Kernel(prog, "finalReduce");
 		clReleaseProgram(prog);
 
-		int dataSize = instancesPerRun;
+		int dataSize = params["NUM_INSTANCES"];
 		double* allData = new double[data.getValueCount() * data.getSize()];
-		Buffer dataBuffer(data.getValueCount() * instancesPerRun * sizeof(double), CL_MEM_READ_ONLY);
+		Buffer dataBuffer(data.getValueCount() * dataSize * sizeof(double), CL_MEM_READ_ONLY);
 
 		int dataBuffIdx = 0;
 		for (MultilabelInstance inst : data.getInstances())
@@ -376,7 +380,7 @@ public:
 		if(!sizesok)
         {
             std::cout << "Workgroup too large" << std::endl;
-            newTime = newTotalTime = std::numeric_limits<int>::max();
+            newCPUTime = newKernelTime = newLoopFinalTime = newLoopStepTime = newRemainFinalTime = newRemainStepTime = std::numeric_limits<int>::max();
 
 			for (int n = 0; n < data.getLabelCount()*data.getSize(); ++n)
             {
@@ -400,7 +404,7 @@ public:
             return;
         }
 
-		params["NUM_INSTANCES"] = dataSize % instancesPerRun;
+		params["NUM_INSTANCES"] = params["NUM_INSTANCES_L"];
 		params["NUM_WG_INSTANCES_SC"] = params["NUM_WG_INSTANCES_SC_L"];
 		params["NUM_WI_INSTANCES_SC"] = params["NUM_WI_INSTANCES_SC_L"];
 		params["NUM_WG_CHAINS_SC"] = params["NUM_WG_CHAINS_SC_L"];
@@ -492,7 +496,7 @@ public:
 		if (!sizesok)
 		{
 			std::cout << "Workgroup too large" << std::endl;
-			newTime = newTotalTime = std::numeric_limits<int>::max();
+			newCPUTime = newKernelTime = newLoopFinalTime = newLoopStepTime = newRemainFinalTime = newRemainStepTime = std::numeric_limits<int>::max();
 
 			for (int n = 0; n < data.getLabelCount()*data.getSize(); ++n)
 			{
@@ -523,12 +527,13 @@ public:
 
 		OutputAtom* allResults = new OutputAtom[data.getLabelCount()*data.getSize()];
 		size_t SCTime = 0.0, SRTime = 0.0, FCTime = 0.0, FRTime = 0.0;
+		size_t SCLTime = 0.0, SRLTime = 0.0, FCLTime = 0.0, FRLTime = 0.0;
 		Util::StopWatch stopWatch;
 		stopWatch.start();
 		size_t instances;
-		for (instances = 0; instances + instancesPerRun <= data.getSize(); instances += instancesPerRun)
+		for (instances = 0; instances + dataSize <= data.getSize(); instances += dataSize)
 		{
-			dataBuffer.writeFrom(allData + instances*data.getValueCount(), instancesPerRun*data.getValueCount() * sizeof(double));
+			dataBuffer.writeFrom(allData + instances*data.getValueCount(), dataSize*data.getValueCount() * sizeof(double));
 			for (int chainIndex = 0; chainIndex < chainSize; ++chainIndex)
 			{
 				stepCalcKernel->SetArg(3, chainIndex);
@@ -543,38 +548,42 @@ public:
 
 			FCTime += finalCalcKernel->getRuntime();
 			FRTime += finalReduceKernel->getRuntime();
-			resultBuffer.readTo(allResults + instances*data.getLabelCount(), instancesPerRun*data.getLabelCount() * sizeof(OutputAtom));
+			resultBuffer.readTo(allResults + instances*data.getLabelCount(), dataSize*data.getLabelCount() * sizeof(OutputAtom));
 		}
 
 		if (instances < data.getSize())
 		{
-			dataBuffer.writeFrom(allData + instances*data.getValueCount(), (data.getSize() % instancesPerRun) * data.getValueCount() * sizeof(double));
+			dataBuffer.writeFrom(allData + instances*data.getValueCount(), (data.getSize() % dataSize) * data.getValueCount() * sizeof(double));
 			for (int chainIndex = 0; chainIndex < chainSize; ++chainIndex)
 			{
 				stepCalcKernelLast->SetArg(3, chainIndex);
 				stepReduceKernelLast->SetArg(4, chainIndex);
 				stepCalcKernelLast->execute();
 				stepReduceKernelLast->execute();
-				SCTime += stepCalcKernelLast->getRuntime();
-				SRTime += stepReduceKernelLast->getRuntime();
+				SCLTime += stepCalcKernelLast->getRuntime();
+				SRLTime += stepReduceKernelLast->getRuntime();
 			}
 			finalCalcKernelLast->execute();
 			finalReduceKernelLast->execute();
 
-			FCTime += finalCalcKernelLast->getRuntime();
-			FRTime += finalReduceKernelLast->getRuntime();
-			resultBuffer.readTo(allResults + instances*data.getLabelCount(), (data.getSize() % instancesPerRun)*data.getLabelCount() * sizeof(OutputAtom));
+			FCLTime += finalCalcKernelLast->getRuntime();
+			FRLTime += finalReduceKernelLast->getRuntime();
+			resultBuffer.readTo(allResults + instances*data.getLabelCount(), (data.getSize() % dataSize)*data.getLabelCount() * sizeof(OutputAtom));
 		}
 
-		newTotalTime = stopWatch.stop();
-		newTime = SCTime + SRTime + (measureStep ? 0 : (FCTime + FRTime));
-		std::cout << "Classification kernel took " << ((double)newTime * 1e-06) << " ms."
+		newCPUTime = stopWatch.stop();
+		newKernelTime = SCTime + SRTime + FCTime + FRTime + SCLTime + SRLTime + FCLTime + FRLTime;
+		newLoopStepTime = SCTime + SRTime;
+		newLoopFinalTime = FCTime + FRTime;
+		newRemainStepTime = SCLTime + SRLTime;
+		newRemainFinalTime = FCLTime + FRLTime;
+		std::cout << "Classification kernel took " << ((double)newKernelTime * 1e-06) << " ms."
 			<< "\n\tstepCalc: " << ((double)SCTime * 1e-06) 
 			<< "\n\tstepReduce: " << ((double)SRTime * 1e-06)
 			<< "\n\tfinalCalc: " << ((double)FCTime * 1e-06)
 			<< "\n\tfinalReduce: " << ((double)FRTime * 1e-06)
 			<< std::endl;		
-		std::cout << "Total time: " << ((double)newTotalTime*1e-06) << std::endl;
+		std::cout << "Total time: " << ((double)newCPUTime*1e-06) << std::endl;
 		
 		PlatformUtil::finish();
 
@@ -682,24 +691,39 @@ public:
 		delete classifyKernel;
 	}
 
-	double getSpeedup()
-	{
-		return oldTime / newTime;
-	}
-
-	size_t getNewTime()
-	{
-		return newTime;
-	}
-
-	size_t getNewTotalTime()
-	{
-		return newTotalTime;
-	}
-
 	size_t getOldTime()
 	{
 		return oldTime;
+	}
+
+	size_t getNewLoopStepTime()
+	{
+		return newLoopStepTime;
+	}
+
+	size_t getNewLoopFinalTime()
+	{
+		return newLoopFinalTime;
+	}
+
+	size_t getNewRemainStepTime()
+	{
+		return newRemainStepTime;
+	}
+
+	size_t getNewRemainFinalTime()
+	{
+		return newRemainFinalTime;
+	}
+
+	size_t getNewKernelTime()
+	{
+		return newKernelTime;
+	}
+
+	size_t getNewCPUTime()
+	{
+		return newCPUTime;
 	}
 
 	~ECCExecutor()
