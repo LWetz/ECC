@@ -417,9 +417,9 @@ void tuneClassify() { // ZEITEN NOCHMAL TRENNEN DANN KOPIEREN
 	tuneTime = TuneRemainStep;
 	auto tunerRemainLoop = atf::exhaustive();
 	best_config = tunerRemainLoop(
-		G(tp_NUM_WG_CHAINS_FC_L, tp_NUM_WI_CHAINS_FC_L, tp_NUM_WI_CHAINS_FR_L),
-		G(tp_NUM_WG_INSTANCES_FC_L, tp_NUM_WI_INSTANCES_FC_L),
-		G(tp_NUM_WG_LABELS_FC_L, tp_NUM_WI_LABELS_FC_L)
+		G(tp_NUM_WG_CHAINS_SC_L, tp_NUM_WI_CHAINS_SC_L),
+		G(tp_NUM_WG_INSTANCES_SC_L, tp_NUM_WI_INSTANCES_SC_L),
+		G(tp_NUM_WG_TREES_SC_L, tp_NUM_WI_TREES_SC_L, tp_NUM_WI_TREES_SR_L)
 	)(tune);
 
 	for (auto it = best_config.begin(); it != best_config.end(); ++it)
