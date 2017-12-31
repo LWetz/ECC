@@ -13,9 +13,9 @@
 #define LB_IDX(I, L, C) ((NUM_LABELS * I + L) * NUM_CHAINS + C)
 #define LO_IDX(I, C, T) ((NUM_WI_CHAINS_SC * I + C) * NUM_WI_TREES_SC + T)
 #define IN_IDX(I, C, WG) ((NUM_CHAINS * I + C) * NUM_WG_TREES_SC + WG)
-#define TREE_IDX(C,F,T)  (((C * NUM_LABELS + F) * NUM_TREES + T) * NODES_PER_TREE)
+#define TREE_IDX(C,T) ((C * NUM_TREES + T) * NODES_PER_TREE)
 
-#define VIEW(I,C,F,T) (InputAtom){(Instance){data + I * (NUM_ATTRIBUTES+NUM_LABELS), labelBuffer + LB_IDX(I,0,C)},(Tree){attributeIndices + TREE_IDX(C,F,T), nodeValues + TREE_IDX(C,F,T)}}
+#define VIEW(I,C,T) (InputAtom){(Instance){data + I * (NUM_ATTRIBUTES+NUM_LABELS), labelBuffer + LB_IDX(I,0,C)},(Tree){attributeIndices + TREE_IDX(C,T), nodeValues + TREE_IDX(C,T)}}
 
 #define IDX(I,C,F,T) (((NUM_CHAINS * I + C) * NUM_LABELS + F) * NUM_TREES + T)
 
@@ -104,7 +104,6 @@ kernel void stepCalc(
 		global double* nodeValues,
 		global int* attributeIndices,
 		global double* data,
-		int forest,
 		global OutputAtom* labelBuffer,
 		local OutputAtom* localBuffer,
 		global OutputAtom* intermediateBuffer
@@ -129,7 +128,7 @@ kernel void stepCalc(
 			for (int t = 0; t < TREES_PER_ITEM; ++t)
 			{
 				int tree = i_wi_tree + i_wg_tree * NUM_WI_TREES_SC + t * NUM_WG_TREES_SC * NUM_WI_TREES_SC;
-				OutputAtom res = traverse(VIEW(instance, chain, forest, tree));
+				OutputAtom res = traverse(VIEW(instance, chain, tree));
 				addAssignOutputAtomsPrv(&res_prv, &res);
 			}
 

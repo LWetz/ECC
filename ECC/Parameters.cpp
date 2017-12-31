@@ -1,12 +1,13 @@
-#include "ECCExecutor.h" 
-#include "atf_library/atf.h" 
+#include "ECCExecutorNew.h" 
+#include "ECCExecutorOld.h" 
+// "atf_library/atf.h" 
 #include <fstream>
 
-#define NUM_CHAINS 64 
-#define NUM_TREES 32 
+#define NUM_CHAINS 8
+#define NUM_TREES 16 
 #define MAX_LEVEL 10
 
-ECCExecutor *ecc;
+ECCExecutorNew *ecc;
 ECCData *evalData;
 std::vector<MultilabelInstance> evalCopy;
 std::vector<double> valOld, valNew, valFixed;
@@ -52,28 +53,25 @@ void loss()
 	for (int i = 0; i < evalCopy.size(); ++i)
 	{
 		MultilabelInstance iOrig = evalCopy[i];
-		bool hitOld = 1.0;
-		bool hitNew = 1.0;
-		bool hitFixed = 1.0;
-		for (int l = 0; l < numLabels; ++l)
+		bool hitOld = true;
+		bool hitNew = true;
+		bool hitFixed = true;
+		for (int l = 0; l < numLabels && hitOld && hitNew && hitFixed; ++l)
 		{
 			double predNew = valNew[i*numLabels + l] > 0 ? 1.0 : 0.0;
 			double predOld = valOld[i*numLabels + l] > 0 ? 1.0 : 0.0;
 			double predFixed = valFixed[i*numLabels + l] > 0 ? 1.0 : 0.0;
 			if (predOld != iOrig.getData()[l + iOrig.getNumAttribs()])
 			{
-				hitOld = 0.0; 
-				break;
+				hitOld = false; 
 			}
 			if (predNew != iOrig.getData()[l + iOrig.getNumAttribs()])
 			{
-				hitNew = 0.0;
-				break;
+				hitNew = false;
 			}
 			if (predFixed != iOrig.getData()[l + iOrig.getNumAttribs()])
 			{
-				hitFixed = 0.0;
-				break;
+				hitFixed = false;
 			}
 		}
 		hitsOld += hitOld;
@@ -164,9 +162,9 @@ void accuracy()
 				intersectionFixed += 1.0;
 			}
 		}
-		oldAccuracy += intersectionOld / unionOld;
-		newAccuracy += intersectionNew / unionNew;
-		fixedAccuracy += intersectionFixed / unionFixed;
+		oldAccuracy += unionOld > 0.0 ? intersectionOld / unionOld : 0.0;
+		newAccuracy += unionNew > 0.0 ? intersectionNew / unionNew : 0.0;
+		fixedAccuracy += unionFixed > 0.0 ? intersectionFixed / unionFixed : 0.0;
 	}
 	oldAccuracy /= ((double)evalCopy.size());
 	newAccuracy /= ((double)evalCopy.size());
@@ -247,13 +245,21 @@ void logloss()
 		{
 			MultilabelInstance iOrig = evalCopy[i];
 
-			double predNew = ((double)valNew[i*numLabels + l] / (double)voteNew[i*numLabels+1]) * 0.5 + 0.5;
-			double predOld = ((double)valOld[i*numLabels + l] / (double)voteOld[i*numLabels + 1]) * 0.5 + 0.5;
-			double predFixed = ((double)valFixed[i*numLabels + l] / (double)voteFixed[i*numLabels + 1]) * 0.5 + 0.5;
+			double predNew = ((double)valNew[i*numLabels + l] / (double)voteNew[i*numLabels+l]) * 0.5 + 0.5;
+			double predOld = ((double)valOld[i*numLabels + l] / (double)voteOld[i*numLabels + l]) * 0.5 + 0.5;
+			double predFixed = ((double)valFixed[i*numLabels + l] / (double)voteFixed[i*numLabels + l]) * 0.5 + 0.5;
+
+			predNew = isnan(predNew) ? 0.0 : predNew;
+			predOld = isnan(predOld) ? 0.0 : predOld;
+			predFixed = isnan(predFixed) ? 0.0 : predFixed;
+
 			double real = iOrig.getData()[l + iOrig.getNumAttribs()];
-			newLogLoss += MIN(maximum, -(log(predNew)*real + log(1 - predNew)*(1 - real)));
-			oldLogLoss += MIN(maximum, -(log(predOld)*real + log(1 - predOld)*(1 - real)));
-			fixedLogLoss += MIN(maximum, -(log(predFixed)*real + log(1 - predFixed)*(1 - real)));
+			if(predNew > 1e-08)
+				newLogLoss += MIN(maximum, -(log(predNew)*real + log(1.0 - predNew)*(1.0 - real)));
+			if (predOld > 1e-08)
+				oldLogLoss += MIN(maximum, -(log(predOld)*real + log(1.0 - predOld)*(1.0 - real)));
+			if (predFixed > 1e-08)
+				fixedLogLoss += MIN(maximum, -(log(predFixed)*real + log(1.0 - predFixed)*(1.0 - real)));
 		}
 	}
 	oldLogLoss /= (double)(numLabels + evalCopy.size());
@@ -262,6 +268,11 @@ void logloss()
 
 	std::cout << "LogLoss: " << oldLogLoss << " (OLD) | " << newLogLoss << " (NEW) | " << fixedLogLoss << " (FIXED)" << std::endl;
 	outfile << "LogLoss: " << oldLogLoss << " (OLD) | " << newLogLoss << " (NEW) | " << fixedLogLoss << " (FIXED)" << std::endl;
+}
+
+namespace atf
+{
+	typedef std::map<std::string, size_t> configuration;
 }
 
 size_t tune(atf::configuration config)
@@ -280,14 +291,6 @@ size_t tune(atf::configuration config)
 	params["NUM_WI_LABELS_FR"] = params["NUM_WI_LABELS_FC"];
 	params["NUM_WI_INSTANCES_FR"] = params["NUM_WI_INSTANCES_FC"];
 
-	params["NUM_WG_CHAINS_SR_L"] = params["NUM_WG_CHAINS_SC_L"];
-	params["NUM_WG_INSTANCES_SR_L"] = params["NUM_WG_INSTANCES_SC_L"];
-	params["NUM_WI_CHAINS_SR_L"] = params["NUM_WI_CHAINS_SC_L"];
-	params["NUM_WI_INSTANCES_SR_L"] = params["NUM_WI_INSTANCES_SC_L"];
-	params["NUM_WG_LABELS_FR_L"] = params["NUM_WG_LABELS_FC_L"];
-	params["NUM_WG_INSTANCES_FR_L"] = params["NUM_WG_INSTANCES_FC_L"];
-	params["NUM_WI_LABELS_FR_L"] = params["NUM_WI_LABELS_FC_L"];
-	params["NUM_WI_INSTANCES_FR_L"] = params["NUM_WI_INSTANCES_FC_L"];
 	ecc->runClassifyNew(*evalData, valNew, voteNew, params);
 	std::cout << "Time: " << ecc->getNewCPUTime() << std::endl;
 	if (firstRun)
@@ -322,12 +325,11 @@ size_t tune(atf::configuration config)
 void tuneClassify() { // ZEITEN NOCHMAL TRENNEN DANN KOPIEREN
 	firstRun = true;
 
-	size_t instCnt = ecc->instancesForMemory(1u * 64u * 1024u * 1024u, evalData->getAttribCount(), evalData->getLabelCount());
+	size_t instCnt = ecc->instancesForMemory(1u * 512u * 1024u * 1024u, evalData->getAttribCount(), evalData->getLabelCount());
 	instCnt = instCnt > numInstances ? numInstances : instCnt;
 
 	extraParams.clear();
-	extraParams["NUM_INSTANCES"] = instCnt;
-	extraParams["NUM_INSTANCES_L"] = numInstances % instCnt;
+	extraParams["NUM_INSTANCES"] = numInstances;
 	extraParams["NUM_LABELS"] = numLabels;
 	extraParams["NUM_ATTRIBUTES"] = numAttributes;
 	extraParams["NUM_CHAINS"] = NUM_CHAINS;
@@ -336,124 +338,12 @@ void tuneClassify() { // ZEITEN NOCHMAL TRENNEN DANN KOPIEREN
 	extraParams["NODES_PER_TREE"] = pow(2.0f, MAX_LEVEL + 1) - 1;
 	extraParams["NUM_WG_CHAINS_FC"] = extraParams["NUM_WG_INSTANCES_FC"] = extraParams["NUM_WG_LABELS_FC"] = extraParams["NUM_WI_CHAINS_FC"] = extraParams["NUM_WI_INSTANCES_FC"] =
 	extraParams["NUM_WI_LABELS_FC"] = extraParams["NUM_WI_CHAINS_FR"] = 1;
-	extraParams["NUM_WG_CHAINS_FC_L"] = extraParams["NUM_WG_INSTANCES_FC_L"] = extraParams["NUM_WG_LABELS_FC_L"] = extraParams["NUM_WI_CHAINS_FC_L"] = extraParams["NUM_WI_INSTANCES_FC_L"] =
-	extraParams["NUM_WI_LABELS_FC_L"] = extraParams["NUM_WI_CHAINS_FR_L"] = 1;
 
-	auto tp_NUM_WG_CHAINS_SC = atf::tp("NUM_WG_CHAINS_SC", atf::interval(1, NUM_CHAINS),
-		[&](auto tp_NUM_WG_CHAINS_SC) { return (NUM_CHAINS % tp_NUM_WG_CHAINS_SC) == 0; });
-	auto tp_NUM_WG_INSTANCES_SC = atf::tp("NUM_WG_INSTANCES_SC", atf::interval(1, (int)instCnt),
-		[&](auto tp_NUM_WG_INSTANCES_SC) { return (instCnt % tp_NUM_WG_INSTANCES_SC) == 0; });
-	auto tp_NUM_WG_TREES_SC = atf::tp("NUM_WG_TREES_SC", atf::interval(1, NUM_TREES),
-		[&](auto tp_NUM_WG_TREES_SC) { return (NUM_TREES % tp_NUM_WG_TREES_SC) == 0; });
-	auto tp_NUM_WI_CHAINS_SC = atf::tp("NUM_WI_CHAINS_SC", atf::interval(1, NUM_CHAINS),
-		[&](auto tp_NUM_WI_CHAINS_SC) { return ((NUM_CHAINS / tp_NUM_WG_CHAINS_SC) % tp_NUM_WI_CHAINS_SC) == 0; });
-	auto tp_NUM_WI_INSTANCES_SC = atf::tp("NUM_WI_INSTANCES_SC", atf::interval(1, (int)instCnt),
-		[&](auto tp_NUM_WI_INSTANCES_SC) { return ((instCnt / tp_NUM_WG_INSTANCES_SC) % tp_NUM_WI_INSTANCES_SC) == 0; });
-	auto tp_NUM_WI_TREES_SC = atf::tp("NUM_WI_TREES_SC", atf::interval(1, NUM_TREES),
-		[&](auto tp_NUM_WI_TREES_SC) { return ((NUM_TREES / tp_NUM_WG_TREES_SC) % tp_NUM_WI_TREES_SC) == 0; });
-	auto tp_NUM_WI_TREES_SR = atf::tp("NUM_WI_TREES_SR", atf::interval(1, NUM_TREES),
-		[&](auto tp_NUM_WI_TREES_SR) { return (tp_NUM_WG_TREES_SC % tp_NUM_WI_TREES_SR) == 0; });
 
-	tuneTime = TuneLoopStep;
-	auto tunerLoopStep = atf::exhaustive();//atf::open_tuner(atf::cond::evaluations(1000));
-	auto best_config = tunerLoopStep(
-		G(tp_NUM_WG_CHAINS_SC, tp_NUM_WI_CHAINS_SC),
-		G(tp_NUM_WG_INSTANCES_SC, tp_NUM_WI_INSTANCES_SC),
-		G(tp_NUM_WG_TREES_SC, tp_NUM_WI_TREES_SC, tp_NUM_WI_TREES_SR)
-	)(tune);
-
-	for (auto it = best_config.begin(); it != best_config.end(); ++it)
-		extraParams[it->first] = it->second;
-
-	auto tp_NUM_WG_CHAINS_FC = atf::tp("NUM_WG_CHAINS_FC", atf::interval(1, NUM_CHAINS),
-		[&](auto tp_NUM_WG_CHAINS_FC) { return (NUM_CHAINS % tp_NUM_WG_CHAINS_FC) == 0; });
-	auto tp_NUM_WG_INSTANCES_FC = atf::tp("NUM_WG_INSTANCES_FC", atf::interval(1, (int)instCnt),
-		[&](auto tp_NUM_WG_INSTANCES_FC) { return (instCnt % tp_NUM_WG_INSTANCES_FC) == 0; });
-	auto tp_NUM_WG_LABELS_FC = atf::tp("NUM_WG_LABELS_FC", atf::interval(1, numLabels),
-		[&](auto tp_NUM_WG_LABELS_FC) { return (numLabels % tp_NUM_WG_LABELS_FC) == 0; });
-	auto tp_NUM_WI_CHAINS_FC = atf::tp("NUM_WI_CHAINS_FC", atf::interval(1, NUM_CHAINS),
-		[&](auto tp_NUM_WI_CHAINS_FC) { return ((NUM_CHAINS / tp_NUM_WG_CHAINS_FC) % tp_NUM_WI_CHAINS_FC) == 0; });
-	auto tp_NUM_WI_INSTANCES_FC = atf::tp("NUM_WI_INSTANCES_FC", atf::interval(1, (int)instCnt),
-		[&](auto tp_NUM_WI_INSTANCES_FC) { return ((instCnt / tp_NUM_WG_INSTANCES_FC) % tp_NUM_WI_INSTANCES_FC) == 0; });
-	auto tp_NUM_WI_LABELS_FC = atf::tp("NUM_WI_LABELS_FC", atf::interval(1, numLabels),
-		[&](auto tp_NUM_WI_LABELS_FC) { return ((numLabels / tp_NUM_WG_LABELS_FC) % tp_NUM_WI_LABELS_FC) == 0; });
-	auto tp_NUM_WI_CHAINS_FR = atf::tp("NUM_WI_CHAINS_FR", atf::interval(1, NUM_CHAINS),
-		[&](auto tp_NUM_WI_CHAINS_FR) { return (tp_NUM_WG_CHAINS_FC % tp_NUM_WI_CHAINS_FR) == 0; });
-
-	tuneTime = extraParams["NUM_INSTANCES_L"] > 0 ? TuneLoopFinal : TuneLoopFinalNoRemain;
-	auto tunerLoopFinal = atf::exhaustive();
-	best_config = tunerLoopFinal(
-		G(tp_NUM_WG_CHAINS_FC, tp_NUM_WI_CHAINS_FC, tp_NUM_WI_CHAINS_FR),
-		G(tp_NUM_WG_INSTANCES_FC, tp_NUM_WI_INSTANCES_FC),
-		G(tp_NUM_WG_LABELS_FC, tp_NUM_WI_LABELS_FC)
-	)(tune);
-
-	for (auto it = best_config.begin(); it != best_config.end(); ++it)
-		extraParams[it->first] = it->second;
-
-	if (extraParams["NUM_INSTANCES_L"] == 0)
-	{
-		outfile << "Best time:" << ((double)tunerLoopFinal.best_measured_result()) * 1e-06 << "ms" << std::endl << std::endl;
-		for (auto it = extraParams.begin(); it != extraParams.end(); ++it)
-			outfile << it->first << " = " << it->second << std::endl;
-		return;
-	}
-
-	auto tp_NUM_WG_CHAINS_SC_L = atf::tp("NUM_WG_CHAINS_SC_L", atf::interval(1, NUM_CHAINS),
-		[&](auto tp_NUM_WG_CHAINS_SC_L) { return (NUM_CHAINS % tp_NUM_WG_CHAINS_SC_L) == 0; });
-	auto tp_NUM_WG_INSTANCES_SC_L = atf::tp("NUM_WG_INSTANCES_SC_L", atf::interval(1, (int)(numInstances%instCnt)),
-		[&](auto tp_NUM_WG_INSTANCES_SC_L) { return (numInstances%instCnt % tp_NUM_WG_INSTANCES_SC_L) == 0; });
-	auto tp_NUM_WG_TREES_SC_L = atf::tp("NUM_WG_TREES_SC_L", atf::interval(1, NUM_TREES),
-		[&](auto tp_NUM_WG_TREES_SC_L) { return (NUM_TREES % tp_NUM_WG_TREES_SC_L) == 0; });
-	auto tp_NUM_WI_CHAINS_SC_L = atf::tp("NUM_WI_CHAINS_SC_L", atf::interval(1, NUM_CHAINS),
-		[&](auto tp_NUM_WI_CHAINS_SC_L) { return ((NUM_CHAINS / tp_NUM_WG_CHAINS_SC_L) % tp_NUM_WI_CHAINS_SC_L) == 0; });
-	auto tp_NUM_WI_INSTANCES_SC_L = atf::tp("NUM_WI_INSTANCES_SC_L", atf::interval(1, (int)(numInstances%instCnt)),
-		[&](auto tp_NUM_WI_INSTANCES_SC_L) { return ((numInstances%instCnt / tp_NUM_WG_INSTANCES_SC_L) % tp_NUM_WI_INSTANCES_SC_L) == 0; });
-	auto tp_NUM_WI_TREES_SC_L = atf::tp("NUM_WI_TREES_SC_L", atf::interval(1, NUM_TREES),
-		[&](auto tp_NUM_WI_TREES_SC_L) { return ((NUM_TREES / tp_NUM_WG_TREES_SC_L) % tp_NUM_WI_TREES_SC_L) == 0; });
-	auto tp_NUM_WI_TREES_SR_L = atf::tp("NUM_WI_TREES_SR_L", atf::interval(1, NUM_TREES),
-		[&](auto tp_NUM_WI_TREES_SR_L) { return (tp_NUM_WG_TREES_SC_L % tp_NUM_WI_TREES_SR_L) == 0; });
-
-	tuneTime = TuneRemainStep;
-	auto tunerRemainLoop = atf::exhaustive();
-	best_config = tunerRemainLoop(
-		G(tp_NUM_WG_CHAINS_SC_L, tp_NUM_WI_CHAINS_SC_L),
-		G(tp_NUM_WG_INSTANCES_SC_L, tp_NUM_WI_INSTANCES_SC_L),
-		G(tp_NUM_WG_TREES_SC_L, tp_NUM_WI_TREES_SC_L, tp_NUM_WI_TREES_SR_L)
-	)(tune);
-
-	for (auto it = best_config.begin(); it != best_config.end(); ++it)
-		extraParams[it->first] = it->second;
-
-	auto tp_NUM_WG_CHAINS_FC_L = atf::tp("NUM_WG_CHAINS_FC_L", atf::interval(1, NUM_CHAINS),
-		[&](auto tp_NUM_WG_CHAINS_FC_L) { return (NUM_CHAINS % tp_NUM_WG_CHAINS_FC_L) == 0; });
-	auto tp_NUM_WG_INSTANCES_FC_L = atf::tp("NUM_WG_INSTANCES_FC_L", atf::interval(1, (int)(numInstances%instCnt)),
-		[&](auto tp_NUM_WG_INSTANCES_FC_L) { return (numInstances%instCnt % tp_NUM_WG_INSTANCES_FC_L) == 0; });
-	auto tp_NUM_WG_LABELS_FC_L = atf::tp("NUM_WG_LABELS_FC_L", atf::interval(1, numLabels),
-		[&](auto tp_NUM_WG_LABELS_FC_L) { return (numLabels % tp_NUM_WG_LABELS_FC_L) == 0; });
-	auto tp_NUM_WI_CHAINS_FC_L = atf::tp("NUM_WI_CHAINS_FC_L", atf::interval(1, NUM_CHAINS),
-		[&](auto tp_NUM_WI_CHAINS_FC_L) { return ((NUM_CHAINS / tp_NUM_WG_CHAINS_FC_L) % tp_NUM_WI_CHAINS_FC_L) == 0; });
-	auto tp_NUM_WI_INSTANCES_FC_L = atf::tp("NUM_WI_INSTANCES_FC_L", atf::interval(1, (int)(numInstances%instCnt)),
-		[&](auto tp_NUM_WI_INSTANCES_FC_L) { return ((numInstances%instCnt / tp_NUM_WG_INSTANCES_FC_L) % tp_NUM_WI_INSTANCES_FC_L) == 0; });
-	auto tp_NUM_WI_LABELS_FC_L = atf::tp("NUM_WI_LABELS_FC_L", atf::interval(1, numLabels),
-		[&](auto tp_NUM_WI_LABELS_FC_L) { return ((numLabels / tp_NUM_WG_LABELS_FC_L) % tp_NUM_WI_LABELS_FC_L) == 0; });
-	auto tp_NUM_WI_CHAINS_FR_L = atf::tp("NUM_WI_CHAINS_FR_L", atf::interval(1, NUM_CHAINS),
-		[&](auto tp_NUM_WI_CHAINS_FR_L) { return (tp_NUM_WG_CHAINS_FC_L % tp_NUM_WI_CHAINS_FR_L) == 0; });
-
-	tuneTime = TuneRemainFinal;
-	auto tunerRemainFinal = atf::exhaustive();
-	best_config = tunerRemainFinal(
-		G(tp_NUM_WG_CHAINS_FC_L, tp_NUM_WI_CHAINS_FC_L, tp_NUM_WI_CHAINS_FR_L),
-		G(tp_NUM_WG_INSTANCES_FC_L, tp_NUM_WI_INSTANCES_FC_L),
-		G(tp_NUM_WG_LABELS_FC_L, tp_NUM_WI_LABELS_FC_L)
-	)(tune);
-
-	for (auto it = best_config.begin(); it != best_config.end(); ++it)
-		extraParams[it->first] = it->second;
-
-	outfile << "Best time:" << ((double)tunerRemainFinal.best_measured_result()) * 1e-06 << "ms" << std::endl << std::endl;
-	for (auto it = extraParams.begin(); it != extraParams.end(); ++it)
-		outfile << it->first << " = " << it->second << std::endl;
+	atf::configuration config;
+	config["NUM_WG_CHAINS_SC"] = config["NUM_WG_INSTANCES_SC"] = config["NUM_WG_TREES_SC"] = config["NUM_WI_CHAINS_SC"] = config["NUM_WI_INSTANCES_SC"] =
+	config["NUM_WI_TREES_SC"] = config["NUM_WI_TREES_SR"] = 1;
+	tune(config);
 }
 int main(int argc, char* argv[]) {
 	std::cout << "START" << std::endl;
@@ -473,21 +363,21 @@ int main(int argc, char* argv[]) {
 	std::cout << "Platform created!" << std::endl;
 
 	std::map<std::string, size_t> dataSets;
-	dataSets["data/bibtex.arff"] = 159;
-	dataSets["data/bookmarks.arff"] = 208;
-	dataSets["data/CAL500.arff"] = 174;
-	dataSets["data/Corel5k.arff"] = 374;
+	//dataSets["data/bibtex.arff"] = 159;
+	//dataSets["data/bookmarks.arff"] = 208;
+	//dataSets["data/CAL500.arff"] = 174;
+	//dataSets["data/Corel5k.arff"] = 374;
 	//dataSets["data/delicious.arff"] = 983;
-	dataSets["data/emotions.arff"] = 6;
-	dataSets["data/enron.arff"] = 53;
-	dataSets["data/flags.arff"] = 7;
-	dataSets["data/genbase.arff"] = 27;
-	dataSets["data/mediamill.arff"] = 101;
-	dataSets["data/medical.arff"] = 45;
+	//dataSets["data/emotions.arff"] = 6;
+	//dataSets["data/enron.arff"] = 53;
+	//dataSets["data/flags.arff"] = 7;
+	//dataSets["data/genbase.arff"] = 27;
+	//dataSets["data/mediamill.arff"] = 101;
+	//dataSets["data/medical.arff"] = 45;
 	dataSets["data/NNRTI.arff"] = 3;
-	dataSets["data/scene.arff"] = 6;
-	dataSets["data/tmc2007.arff"] = 22;
-	dataSets["data/yeast.arff"] = 14;
+	//dataSets["data/scene.arff"] = 6;
+	//dataSets["data/tmc2007.arff"] = 22;
+	//dataSets["data/yeast.arff"] = 14;
 
 	//	dataSets.clear();
 	//	dataSets["data/bibtex.arff"] = 159;
@@ -511,6 +401,7 @@ int main(int argc, char* argv[]) {
 		std::vector<MultilabelInstance> evalInstances;
 		trainInstances.reserve(trainSize);
 		evalInstances.reserve(evalSize);
+		Util::RANDOM.setSeed(10101001);
 		for (int i = 0; i < trainSize; ++i)
 		{
 			int idx = Util::randomInt(inputCopy.size());
@@ -531,12 +422,15 @@ int main(int argc, char* argv[]) {
 		}
 		ECCData trainData(trainInstances, data.getAttribCount(), data.getLabelCount());
 		evalData = new ECCData(evalInstances, data.getAttribCount(), data.getLabelCount());
-		ecc = new ECCExecutor(MAX_LEVEL, evalInstances[0].getValueCount(), NUM_TREES);
-		ecc->runBuild(trainData, NUM_TREES, NUM_CHAINS, NUM_CHAINS, 100, 50);
-		ecc->runClassifyOld(*evalData, valOld, voteOld, false);
-		outfile << "Old time: " << ((double)ecc->getOldTime()) * 1e-06 << "ms" << std::endl;
-		ecc->runClassifyOld(*evalData, valFixed, voteFixed, true);
-		outfile << "Old time fixed: " << ((double)ecc->getOldTime()) * 1e-06 << "ms" << std::endl;
+		ECCExecutorOld* oldEcc = new ECCExecutorOld(MAX_LEVEL, evalInstances[0].getValueCount(), NUM_TREES);
+		oldEcc->runBuild(trainData, 8, NUM_CHAINS, 8, 100, 50);
+		oldEcc->runClassifyOld(*evalData, valOld, voteOld, false);
+		outfile << "Old time: " << ((double)oldEcc->getTime()) * 1e-06 << "ms" << std::endl;
+		oldEcc->runClassifyOld(*evalData, valFixed, voteFixed, true);
+		outfile << "Old time fixed: " << ((double)oldEcc->getTime()) * 1e-06 << "ms" << std::endl;
+		delete oldEcc;
+		ecc = new ECCExecutorNew(MAX_LEVEL, evalInstances[0].getValueCount(), NUM_TREES);
+		ecc->runBuild(trainData, 8, NUM_CHAINS, 8, 100, 50);
 		numLabels = evalData->getLabelCount();
 		numAttributes = evalData->getAttribCount();
 		numInstances = evalData->getInstances().size();

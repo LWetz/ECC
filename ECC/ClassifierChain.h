@@ -19,7 +19,7 @@ public:
 	ClassifierChain(int numValues, int numLabels, int maxLevel, int forestSize);
 
 	const std::vector<Forest>& getForests();
-	const std::vector<int> getLabelOrder();
+	const std::vector<int> getLabelOrder() const;
 	int getMaxLevel();
 	int getTreeSize();
 	int getForestSize();

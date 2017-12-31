@@ -321,6 +321,7 @@ kernel void eccBuild(       //input (read-only)
                             global int* pChainSize,
                             global int* pMaxSplits,                      
                             global int* pForestSize,
+							global int* pEnsembleSize,
                             //read-write
                             global int* instances,
                             global int* instancesNext,
@@ -332,6 +333,7 @@ kernel void eccBuild(       //input (read-only)
                             ) 
 { 
     int gid = get_global_id(0);
+	int realGid = gid + *gidMultiplier * get_global_size(0);
     int dataSize = *pDataSize;
     int subSetSize = *pSubSetSize;
     int maxAttributes = *pMaxAttributes;
@@ -346,8 +348,8 @@ kernel void eccBuild(       //input (read-only)
     int instancesLengthStart = nodesLastLevel * gid;
     int rootNode = nodesPerTree * gid;
     int forestSize = *pForestSize;
-    int ensembleSize = get_global_size(0) / (forestSize * chainSize);
-    int labelAt = (int) floor(((float) (gid * *gidMultiplier) / (float) get_global_size(0)) * (chainSize * ensembleSize));
+	int ensembleSize = *pEnsembleSize;
+	int labelAt = floor((float)realGid / numTrees);
     int seed = seeds[gid];
 
     instancesLength[instancesLengthStart] = maxSplits;

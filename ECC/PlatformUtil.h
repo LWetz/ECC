@@ -147,7 +147,10 @@ public:
 
 	static cl_mem createBuffer(cl_mem_flags flags, size_t size)
 	{
-		return clCreateBuffer(context, flags, size, NULL, NULL);
+		cl_int err;
+		auto buff = clCreateBuffer(context, flags, size, NULL, &err);
+		PlatformUtil::checkError(err);
+		return buff;
 	}
 
 	static cl_command_queue getCommandQueue()

@@ -76,9 +76,9 @@ int main2(int argc, char* argv[])
 			std::vector<int> voteOld, voteNew;
 			eccex.runClassifyOld(data, valOld, voteOld);
 			//eccex.runClassifyNew(data, valNew, voteNew);
-			double speedup = eccex.getSpeedup();
-			std::cout << "Speedup: " << speedup << std::endl;
-			avgSpeed += speedup;
+			//double speedup = eccex.getSpeedup();
+			//std::cout << "Speedup: " << speedup << std::endl;
+			//avgSpeed += speedup;
 			double hitsOld = 0, hitsNew = 0;
 			bool sameResult = true;
 			for (int i = 0; i < evalCopy.size(); ++i)

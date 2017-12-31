@@ -23,7 +23,7 @@ const std::vector<Forest>& ClassifierChain::getForests()
 	return forests;
 }
 
-const std::vector<int> ClassifierChain::getLabelOrder()
+const std::vector<int> ClassifierChain::getLabelOrder() const
 {
 	return orderedLabels;
 }

@@ -96,7 +96,7 @@ kernel void stepReduce(	global OutputAtom* intermediateBuffer,
 
 			if (i_wi_tree == 0)
 			{
-				int label = labelOrders[NUM_LABELS * chain + forest];
+				int label = labelOrders[chain * NUM_LABELS + forest];
 				int labelIndex = LB_IDX(instance, label, chain);
 
 				labelBuffer[labelIndex] = localBuffer[localIndex];

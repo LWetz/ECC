@@ -14,43 +14,35 @@ namespace Util
 		return std::chrono::duration_cast<std::chrono::nanoseconds>(elapsed).count();
 	}
 
-	class Random
+	int64_t Random::shr(int64_t lhs, uint8_t rhs)
 	{
-	private:
-		int64_t _seed;
+		return (lhs >> rhs) & ((1LL << (64 - rhs)) - 1);
+	}
+	void Random::setSeed(int64_t seed)
+	{
+		_seed = (seed ^ 0x5DEECE66DLL) & ((1LL << 48) - 1);
+	}
 
-		int64_t shr(int64_t lhs, uint8_t rhs)
+	int Random::next(int bits)
+	{
+		_seed = (_seed * 0x5DEECE66DLL + 0xBLL) & ((1LL << 48) - 1);
+		return (int)shr(_seed, 48 - bits);
+	} 
+
+	int Random::nextInt(int bound)
+	{
+		int r = next(31);
+		int m = bound - 1;
+		if ((bound & m) == 0)
 		{
-			return (lhs >> rhs) & ((1LL << (64 - rhs)) - 1);
+			r = (int)((bound * (int64_t)r) >> 31);
 		}
-
-	public:
-		void setSeed(int64_t seed)
+		else
 		{
-			_seed = (seed ^ 0x5DEECE66DLL) & ((1LL << 48) - 1);
+			for (int u = r; u - (r = u % bound) + m < 0; u = next(31));
 		}
-
-		int next(int bits)
-		{
-			_seed = (_seed * 0x5DEECE66DLL + 0xBLL) & ((1LL << 48) - 1);
-			return (int)shr(_seed, 48 - bits);
-		} 
-
-		int nextInt(int bound)
-		{
-			int r = next(31);
-			int m = bound - 1;
-			if ((bound & m) == 0)
-			{
-				r = (int)((bound * (int64_t)r) >> 31);
-			}
-			else
-			{
-				for (int u = r; u - (r = u % bound) + m < 0; u = next(31));
-			}
-			return r;
-		}
-	};
+		return r;
+	}
 
 	Random makeRand()
 	{
@@ -58,8 +50,6 @@ namespace Util
 		rnd.setSeed(std::chrono::system_clock::now().time_since_epoch().count());
 		return rnd;
 	}
-
-	Random RANDOM = makeRand();
 
 	int randomInt(int min, int max)
 	{
@@ -112,3 +102,5 @@ namespace Util
 		return str;
 	}
 }
+
+Util::Random Util::RANDOM = Util::makeRand();

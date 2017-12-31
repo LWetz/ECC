@@ -166,7 +166,7 @@ splitStruct findSplit(
 
             double randomValue = data[(randomInstance * numValues) + randomIndex];
 
-            double gain = informationGain(data, randomValue, randomIndex, labelOrder[labelAt], numValues, numAttributes, instances, instancesStart, splitStack, splitSize);
+			double gain = informationGain(data, randomValue, randomIndex, labelOrder[labelAt], numValues, numAttributes, instances, instancesStart, splitStack, splitSize);
             if(gain > bestGain)
             {
                 bestGain = gain;
@@ -181,9 +181,9 @@ splitStruct findSplit(
         int leftSize = 0;
         for(int index = 0; index < splitSize; ++index)
         {
-            if(data[instances[instancesStart + splitStack + index] * numValues + bestIndex]  <= bestValue) 
+            if(data[instances[instancesStart + splitStack + index] * numValues + bestIndex] <= bestValue) 
             {
-                instancesNext[instancesStart + splitStack + instancesIndex] = instances[instancesStart + splitStack + index];
+				instancesNext[instancesStart + splitStack + instancesIndex] = instances[instancesStart + splitStack + index];
                 ++instancesIndex;
                 ++leftSize;
             }
@@ -332,13 +332,13 @@ kernel void eccBuild(       //input (read-only)
                             ) 
 { 
     int gid = get_global_id(0);
+	int realGid = gid + gidMultiplier * get_global_size(0);
     int nodesLastLevel = pown(2.f, maxLevel);
     int nodesPerTree = pown(2.f, maxLevel + 1) - 1;
     int instancesStart = maxSplits * gid;
     int instancesLengthStart = nodesLastLevel * gid;
     int rootNode = nodesPerTree * gid;
-    int ensembleSize = get_global_size(0) / (forestSize * chainSize);
-    int labelAt = (int) floor(((float) (gid * gidMultiplier) / (float) get_global_size(0)) * (chainSize * ensembleSize));
+    int labelAt = (int)floor((float)realGid / (float)forestSize);
     int seed = seeds[gid];
 
     instancesLength[instancesLengthStart] = maxSplits;
@@ -412,6 +412,4 @@ kernel void eccBuild(       //input (read-only)
                     gid,
                     maxLevel
                 );
-
-
 } 
