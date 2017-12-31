@@ -29,12 +29,10 @@ class ECCExecutorNew
 	int ensembleSize;
 	int maxAttributes;
 
-	size_t newLoopStepTime;
-	size_t newLoopFinalTime;
-	size_t newRemainStepTime;
-	size_t newRemainFinalTime;
-	size_t newKernelTime;
-	size_t newCPUTime;
+	size_t stepTime;
+	size_t finalTime;
+	size_t kernelTime;
+	size_t CPUTime;
 
 	std::vector<int> partitionInstances(ECCData& data, EnsembleOfClassifierChains& ecc)
 	{
@@ -399,7 +397,7 @@ public:
 		if (!sizesok)
 		{
 			std::cout << "Workgroup too large" << std::endl;
-			newCPUTime = newKernelTime = newLoopFinalTime = newLoopStepTime = newRemainFinalTime = newRemainStepTime = std::numeric_limits<int>::max();
+			CPUTime = kernelTime = finalTime = stepTime = std::numeric_limits<int>::max();
 
 			for (int n = 0; n < data.getLabelCount()*data.getSize(); ++n)
 			{
@@ -444,17 +442,17 @@ public:
 		FRTime += finalReduceKernel->getRuntime();
 		resultBuffer.read();
 
-		newCPUTime = stopWatch.stop();
-		newKernelTime = SCTime + SRTime + FCTime + FRTime;
-		newLoopStepTime = SCTime + SRTime;
-		newLoopFinalTime = FCTime + FRTime;
-		std::cout << "Classification kernel took " << ((double)newKernelTime * 1e-06) << " ms."
+		CPUTime = stopWatch.stop();
+		kernelTime = SCTime + SRTime + FCTime + FRTime;
+		stepTime = SCTime + SRTime;
+		finalTime = FCTime + FRTime;
+		std::cout << "Classification kernel took " << ((double)kernelTime * 1e-06) << " ms."
 			<< "\n\tstepCalc: " << ((double)SCTime * 1e-06)
 			<< "\n\tstepReduce: " << ((double)SRTime * 1e-06)
 			<< "\n\tfinalCalc: " << ((double)FCTime * 1e-06)
 			<< "\n\tfinalReduce: " << ((double)FRTime * 1e-06)
 			<< std::endl;
-		std::cout << "Total time: " << ((double)newCPUTime*1e-06) << std::endl;
+		std::cout << "Total time: " << ((double)CPUTime*1e-06) << std::endl;
 
 		PlatformUtil::finish();
 
@@ -482,34 +480,24 @@ public:
 		delete finalReduceKernel;
 	}
 
-	size_t getNewLoopStepTime()
+	size_t getStepTime()
 	{
-		return newLoopStepTime;
+		return stepTime;
 	}
 
-	size_t getNewLoopFinalTime()
+	size_t getFinalTime()
 	{
-		return newLoopFinalTime;
+		return finalTime;
 	}
 
-	size_t getNewRemainStepTime()
+	size_t getKernelTime()
 	{
-		return newRemainStepTime;
+		return kernelTime;
 	}
 
-	size_t getNewRemainFinalTime()
+	size_t getCPUTime()
 	{
-		return newRemainFinalTime;
-	}
-
-	size_t getNewKernelTime()
-	{
-		return newKernelTime;
-	}
-
-	size_t getNewCPUTime()
-	{
-		return newCPUTime;
+		return CPUTime;
 	}
 
 	~ECCExecutorNew()
