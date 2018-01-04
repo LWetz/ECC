@@ -23,14 +23,22 @@ public:
 			{
 				try
 				{
+
 					std::string str = std::string(*(inst->get(i)));
 
-					if (str.compare("0") == 0)
-						val = 0.0;
-					else if (str.compare("1") == 0)
-						val = 1.0;
+					if (i < (inst->size() - _numLabels))
+					{
+						val = std::stod(str);
+					}
 					else
-						throw;
+					{
+						if (str.compare("0") == 0)
+							val = 0.0;
+						else if (str.compare("1") == 0)
+							val = 1.0;
+						else
+							throw;
+					}
 				}
 				catch (...)
 				{

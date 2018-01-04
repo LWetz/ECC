@@ -1,8 +1,13 @@
-NUM_CHAINS = 8
-NUM_TREES = 8
+NUM_CHAINS = 64
+NUM_TREES = 32
 MAX_LEVEL = 10
 
-Dataset: data/CAL500.arff
-instances: 502 attribute: 68 labels: 174
-Old time: 108.598ms
-Old time fixed: 108.536ms
+Dataset: data/scene.arff
+instances: 2407 attribute: 294 labels: 6
+Old time: 642.752ms
+Old time fixed: 618.469ms
+0/1 Loss: 0.855346 (OLD) | 1 (NEW) | 0.855346 (FIXED)
+HammingLoss: 0.0749064 (OLD) | -0.0724095 (NEW) | 0.0761548 (FIXED)
+Accuracy: 0.142767 (OLD) | 0 (NEW) | 0.142767 (FIXED)
+FMeasure: 0.206685 (OLD) | 0 (NEW) | 0.20682 (FIXED)
+LogLoss: 37.6772 (OLD) | 0 (NEW) | 37.6855 (FIXED)
