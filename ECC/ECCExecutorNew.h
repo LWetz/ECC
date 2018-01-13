@@ -111,7 +111,7 @@ public:
 		Util::RANDOM.setSeed(133713);
 	}
 
-	void runBuild(ECCData& data, int treesPerRun, int ensembleSize, int chainsPerRun, int ensembleSubSetSize, int forestSubSetSize)
+	void runBuild(ECCData& data, int ensembleSize, int treesPerRun, int ensembleSubSetSize, int forestSubSetSize)
 	{
 		delete[] nodeValues;
 		delete[] nodeIndices;
@@ -129,7 +129,7 @@ public:
 			partitionInstance = true;
 
 		ecc = new EnsembleOfClassifierChains(data.getValueCount(), data.getLabelCount(), maxLevel, forestSize, ensembleSize, ensembleSubSetSize, forestSubSetSize);
-		int globalSize = ecc->getChainSize() * chainsPerRun * treesPerRun;
+		int globalSize = treesPerRun;
 		int nodesLastLevel = pow(2.0f, maxLevel);
 		int nodesPerTree = pow(2.0f, maxLevel + 1) - 1;
 
@@ -178,8 +178,6 @@ public:
 		Buffer voteBuffer(sizeof(int) * nodesLastLevel*globalSize, CL_MEM_READ_WRITE);
 
 		int gidMultiplier = 0;
-		int ensembleRuns = ensembleSize / chainsPerRun;
-		int forestRuns = forestSize / treesPerRun;
 
 		buildKernel->setDim(1);
 		buildKernel->setGlobalSize(globalSize);
@@ -209,34 +207,34 @@ public:
 
 		Util::StopWatch stopWatch;
 		stopWatch.start();
-		for (int chain = 0; chain < ensembleSize; chain += chainsPerRun)
+
+		for (int tree = 0; tree < ensembleSize * chainSize * forestSize; tree += treesPerRun)
 		{
-			for (int tree = 0; tree < forestSize; tree += treesPerRun)
+			buildKernel->SetArg(0, gidMultiplier);
+
+			for (int seed = 0; seed < globalSize; ++seed)
 			{
-				buildKernel->SetArg(0, gidMultiplier);
-
-				for (int seed = 0; seed < globalSize; ++seed)
-				{
-					int rnd = Util::randomInt(INT_MAX);
-					static_cast<int*>(seedsBuffer.getData())[seed] = rnd;
-				}
-				seedsBuffer.write();
-
-				memcpy(instancesBuffer.getData(), indicesList.data() + gidMultiplier * globalSize * maxSplits, globalSize * maxSplits * sizeof(int));
-				instancesBuffer.write();
-
-				buildKernel->execute();
-				totalTime += buildKernel->getRuntime();
-
-				tmpNodeIndexBuffer.read();
-				tmpNodeValueBuffer.read();
-
-				memcpy(((uint8_t*)nodeIndices) + gidMultiplier*tmpNodeIndexBuffer.getSize(), tmpNodeIndexBuffer.getData(), tmpNodeIndexBuffer.getSize());
-				memcpy(((uint8_t*)nodeValues) + gidMultiplier*tmpNodeValueBuffer.getSize(), tmpNodeValueBuffer.getData(), tmpNodeValueBuffer.getSize());
-
-				++gidMultiplier;
+				int rnd = Util::randomInt(INT_MAX);
+				static_cast<int*>(seedsBuffer.getData())[seed] = rnd;
 			}
+			seedsBuffer.write();
+
+			memcpy(instancesBuffer.getData(), indicesList.data() + gidMultiplier * globalSize * maxSplits, globalSize * maxSplits * sizeof(int));
+			instancesBuffer.write();
+
+			buildKernel->execute();
+			std::cout << "Build run " << gidMultiplier << std::endl;
+			totalTime += buildKernel->getRuntime();
+
+			tmpNodeIndexBuffer.read();
+			tmpNodeValueBuffer.read();
+
+			memcpy(((uint8_t*)nodeIndices) + gidMultiplier*tmpNodeIndexBuffer.getSize(), tmpNodeIndexBuffer.getData(), tmpNodeIndexBuffer.getSize());
+			memcpy(((uint8_t*)nodeValues) + gidMultiplier*tmpNodeValueBuffer.getSize(), tmpNodeValueBuffer.getData(), tmpNodeValueBuffer.getSize());
+
+			++gidMultiplier;
 		}
+
 		std::cout << "Build took " << ((double)stopWatch.stop())*1e-06 << " ms total." << std::endl;
 		std::cout << "Build took " << ((double)totalTime)*1e-06 << " ms kernel time." << std::endl;
 

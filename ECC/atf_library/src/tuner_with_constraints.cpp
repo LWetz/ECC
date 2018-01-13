@@ -51,6 +51,11 @@ std::chrono::high_resolution_clock::time_point tuner_with_constraints::tuning_st
 }
 
 
+size_t tuner_with_constraints::search_space_size() const
+{
+	return _search_space_size;
+}
+
 size_t tuner_with_constraints::number_of_evaluated_configs() const
 {
   return _number_of_evaluated_configs;
