@@ -1,6 +1,6 @@
 #include "ECCExecutorNew.h" 
 #include "ECCExecutorOld.h" 
-#include "atf_library/atf.h" 
+// "atf_library/atf.h" 
 #include <fstream>
 
 #define NUM_CHAINS 64
@@ -270,8 +270,58 @@ void logloss()
 	outfile << "LogLoss: " << oldLogLoss << " (OLD) | " << newLogLoss << " (NEW) | " << fixedLogLoss << " (FIXED)" << std::endl;
 }
 
+namespace atf
+{
+	typedef std::map<std::string, size_t> configuration;
+}
+
 size_t tune(atf::configuration config)
 {
+	std::map<std::string, int> params = extraParams;
+	valNew.clear();
+	voteNew.clear();
+	for (auto it = config.begin(); it != config.end(); ++it)
+		params[it->first] = it->second;
+	params["NUM_WG_CHAINS_SR"] = params["NUM_WG_CHAINS_SC"];
+	params["NUM_WG_INSTANCES_SR"] = params["NUM_WG_INSTANCES_SC"];
+	params["NUM_WI_CHAINS_SR"] = params["NUM_WI_CHAINS_SC"];
+	params["NUM_WI_INSTANCES_SR"] = params["NUM_WI_INSTANCES_SC"];
+	params["NUM_WG_LABELS_FR"] = params["NUM_WG_LABELS_FC"];
+	params["NUM_WG_INSTANCES_FR"] = params["NUM_WG_INSTANCES_FC"];
+	params["NUM_WI_LABELS_FR"] = params["NUM_WI_LABELS_FC"];
+	params["NUM_WI_INSTANCES_FR"] = params["NUM_WI_INSTANCES_FC"];
+
+	ecc->runClassifyNew(*evalData, valNew, voteNew, params);
+	std::cout << "Time: " << ecc->getCPUTime() << std::endl;
+	if (firstRun)
+	{
+		isSameResult();
+		loss();
+		hammingloss();
+		accuracy();
+		fmeasure();
+		logloss();
+		firstRun = false;
+	}
+
+	switch (tuneTime)
+	{
+	case TuneLoopStep:
+		return ecc->getStepTime();
+		break;
+	case TuneLoopFinal:
+		return ecc->getFinalTime();
+		break;
+	case TuneRemainStep:
+		break;
+	case TuneRemainFinal:
+	case TuneLoopFinalNoRemain:
+		return ecc->getCPUTime();
+		break;
+	}
+}
+
+void tuneClassify() { // ZEITEN NOCHMAL TRENNEN DANN KOPIEREN
 	firstRun = true;
 
 	extraParams.clear();
@@ -341,53 +391,6 @@ size_t tune(atf::configuration config)
 	for (auto it = extraParams.begin(); it != extraParams.end(); ++it)
 		outfile << it->first << " = " << it->second << std::endl;
 	return;
-}
-
-void tuneClassify() { // ZEITEN NOCHMAL TRENNEN DANN KOPIEREN
-	firstRun = true;
-
-	extraParams.clear();
-	extraParams["NUM_INSTANCES"] = numInstances;
-	extraParams["NUM_LABELS"] = numLabels;
-	extraParams["NUM_ATTRIBUTES"] = numAttributes;
-	extraParams["NUM_CHAINS"] = NUM_CHAINS;
-	extraParams["NUM_TREES"] = NUM_TREES;
-	extraParams["MAX_LEVEL"] = MAX_LEVEL;
-	extraParams["NODES_PER_TREE"] = pow(2.0f, MAX_LEVEL + 1) - 1;
-	extraParams["NUM_WG_CHAINS_FC"] = extraParams["NUM_WG_INSTANCES_FC"] = extraParams["NUM_WG_LABELS_FC"] = extraParams["NUM_WI_CHAINS_FC"] = extraParams["NUM_WI_INSTANCES_FC"] =
-		extraParams["NUM_WI_LABELS_FC"] = extraParams["NUM_WI_CHAINS_FR"] = 1;
-
-	atf::configuration config;
-	config["NUM_WG_CHAINS_FC"] = 16;
-	config["NUM_WG_CHAINS_SC"] = 16;
-	config["NUM_WG_INSTANCES_FC"] = 59;
-	config["NUM_WG_INSTANCES_SC"] = 59;
-	config["NUM_WG_LABELS_FC"] = 1;
-	config["NUM_WG_TREES_SC"] = 2;
-	config["NUM_WI_CHAINS_FC"] = 4;
-	config["NUM_WI_CHAINS_FR"] = 4;
-	config["NUM_WI_CHAINS_SC"] = 4;
-	config["NUM_WI_INSTANCES_FC"] = 2;
-	config["NUM_WI_INSTANCES_SC"] = 4;
-	config["NUM_WI_LABELS_FC"] = 3;
-	config["NUM_WI_TREES_SC"] = 4;
-	config["NUM_WI_TREES_SR"] = 2;
-	//config["NUM_WG_CHAINS_FC"] = 
-	//config["NUM_WG_CHAINS_SC"] = 
-	//config["NUM_WG_INSTANCES_FC"] = 
-	//config["NUM_WG_INSTANCES_SC"] = 
-	//config["NUM_WG_LABELS_FC"] = 
-	//config["NUM_WG_TREES_SC"] = 
-	//config["NUM_WI_CHAINS_FC"] = 
-	//config["NUM_WI_CHAINS_FR"] = 
-	//config["NUM_WI_CHAINS_SC"] = 
-	//config["NUM_WI_INSTANCES_FC"] = 
-	//config["NUM_WI_INSTANCES_SC"] = 
-	//config["NUM_WI_LABELS_FC"] = 
-	//config["NUM_WI_TREES_SC"] = 
-	//config["NUM_WI_TREES_SR"] = 1;
-
-	tune(config);
 }
 int main(int argc, char* argv[]) {
 	std::cout << "START" << std::endl;
