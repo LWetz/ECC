@@ -41,7 +41,9 @@ int calcTreesPerRun(int nodeLimit, int totalTrees, int nodesPerTree)
 {
 	int treeLimit = nodeLimit / nodesPerTree;
 
-	if (nodeLimit >= totalTrees)
+	treeLimit = treeLimit > 0 ? treeLimit : 1;
+
+	if (treeLimit >= totalTrees)
 		return totalTrees;
 
 	while (totalTrees % treeLimit != 0)
@@ -197,11 +199,11 @@ int main(int argc, char* argv[]) {
 	int nodeLimit;
 
 	int totalTrees;
-
-	int nodesPerTree = (1 << (maxLevel + 1)) - 1;
+	int nodesPerTree;
 
 	try {
 		maxLevel = getIntegerCmdOption(argv + 2, argv + argc, 10, "-depth");
+		nodesPerTree = (1 << (maxLevel + 1)) - 1;
 		numTrees = getIntegerCmdOption(argv + 2, argv + argc, 32, "-t");
 		numChains = getIntegerCmdOption(argv + 2, argv + argc, 64, "-c");
 		totalTrees = numLabels * numChains * numTrees;
@@ -244,6 +246,27 @@ int main(int argc, char* argv[]) {
 
 		writeConfigFile(config, makeFileName(dataset, pname, maxLevel, numChains, numTrees));
 #endif
+		ECCExecutorNew eccEx(maxLevel, numAttributes, numAttributes, numTrees, numLabels, numChains, ensembleSubSetSize, forestSubSetSize);
+		eccEx.prepareBuild(trainData, treesPerRun);
+		for (int wi = 1; wi < treesPerRun; ++wi)
+		{
+			for (int wg = 1; wg < treesPerRun; ++wg)
+			{
+				if ((treesPerRun % wg) != 0 || ((treesPerRun / wg) % wi) != 0)
+					continue;
+
+				std::cout << "WG=" << wg << " WI=" << wi << " => ";
+				try {
+					std::cout << eccEx.tuneBuild(wi, wg)*1e-09 << std::endl;
+				}
+				catch (...)
+				{
+					std::cout << "ERROR" << std::endl;
+				}
+			}
+		}
+		eccEx.finishBuild();
+		system("Pause");
 	}
 	else if (std::string(argv[1]).compare("measure") == 0)
 	{
