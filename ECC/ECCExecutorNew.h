@@ -219,7 +219,7 @@ public:
 		buildKernel->setGlobalSize(workgroups * workitems);
 		buildKernel->setLocalSize(workitems);
 
-		buildKernel->SetArg(0, buildData->numTrees);
+		buildKernel->SetArg(0, 0);
 		buildKernel->SetArg(1, buildData->seedsBuffer);
 		buildKernel->SetArg(2, buildData->dataBuffer, true);
 		buildKernel->SetArg(3, labelOrderBuffer);
@@ -456,6 +456,10 @@ public:
 		config["NUM_TREES"] = numTrees;
 		config["MAX_LEVEL"] = maxLevel;
 		config["NODES_PER_TREE"] = pow(2.0f, maxLevel + 1) - 1;
+		config["NUM_WI_INSTANCES_SR"] = config["NUM_WI_INSTANCES_SC"];
+		config["NUM_WG_INSTANCES_SR"] = config["NUM_WG_INSTANCES_SC"];
+		config["NUM_WI_CHAINS_SR"] = config["NUM_WI_CHAINS_SC"];
+		config["NUM_WG_CHAINS_SR"] = config["NUM_WG_CHAINS_SC"];
 
 		std::string optionString;
 		std::stringstream strstr;
@@ -522,7 +526,7 @@ public:
 		return time;
 	}
 
-	double tuneClassifyFinal(std::map<std::string, int>& config)
+	double tuneClassifyFinal(std::map<std::string, int> config)
 	{
 		config["NUM_INSTANCES"] = classifyData->numInstances;
 		config["NUM_LABELS"] = numLabels;
@@ -531,6 +535,10 @@ public:
 		config["NUM_TREES"] = numTrees;
 		config["MAX_LEVEL"] = maxLevel;
 		config["NODES_PER_TREE"] = pow(2.0f, maxLevel + 1) - 1;
+		config["NUM_WI_INSTANCES_FR"] = config["NUM_WI_INSTANCES_FC"];
+		config["NUM_WG_INSTANCES_FR"] = config["NUM_WG_INSTANCES_FC"];
+		config["NUM_WI_LABELS_FR"] = config["NUM_WI_LABELS_FC"];
+		config["NUM_WG_LABELS_FR"] = config["NUM_WG_LABELS_FC"];
 
 		std::string optionString;
 		std::stringstream strstr;
@@ -596,7 +604,7 @@ public:
 		delete classifyData;
 	}
 
-	void runClassifyNew(ECCData& data, std::vector<double>& values, std::vector<int>& votes, std::map<std::string, int>& config)
+	void runClassifyNew(ECCData& data, std::vector<double>& values, std::vector<int>& votes, std::map<std::string, int> config)
 	{
 		config["NUM_INSTANCES"] = classifyData->numInstances;
 		config["NUM_LABELS"] = numLabels;
@@ -605,6 +613,16 @@ public:
 		config["NUM_TREES"] = numTrees;
 		config["MAX_LEVEL"] = maxLevel;
 		config["NODES_PER_TREE"] = pow(2.0f, maxLevel + 1) - 1;
+
+		config["NUM_WI_INSTANCES_SR"] = config["NUM_WI_INSTANCES_SC"];
+		config["NUM_WG_INSTANCES_SR"] = config["NUM_WG_INSTANCES_SC"];
+		config["NUM_WI_CHAINS_SR"] = config["NUM_WI_CHAINS_SC"];
+		config["NUM_WG_CHAINS_SR"] = config["NUM_WG_CHAINS_SC"];
+
+		config["NUM_WI_INSTANCES_FR"] = config["NUM_WI_INSTANCES_FC"];
+		config["NUM_WG_INSTANCES_FR"] = config["NUM_WG_INSTANCES_FC"];
+		config["NUM_WI_LABELS_FR"] = config["NUM_WI_LABELS_FC"];
+		config["NUM_WG_LABELS_FR"] = config["NUM_WG_LABELS_FC"];
 
 		std::cout << std::endl << "--- NEW CLASSIFICATION ---" << std::endl;
 		std::string optionString;
