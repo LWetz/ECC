@@ -22,7 +22,7 @@ private:
 			cfgmap[it->first] = it->second;
 		}
 
-		eccEx.tuneClassifyStep(cfgmap, true);
+		return eccEx.tuneClassifyStep(cfgmap, true);
 	}
 
 	double tuneClassifyFinalFunc(atf::configuration config)
@@ -33,12 +33,12 @@ private:
 			cfgmap[it->first] = it->second;
 		}
 
-		eccEx.tuneClassifyFinal(cfgmap);
+		return eccEx.tuneClassifyFinal(cfgmap);
 	}
 
 	double tuneBuildFunc(atf::configuration config)
 	{
-		eccEx.tuneBuild(config["NUM_WI"], config["NUM_WG"]);
+		return eccEx.tuneBuild(config["NUM_WI"], config["NUM_WG"]);
 	}
 
 	void tuneBuild(int treesPerRun)
