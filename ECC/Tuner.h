@@ -1,6 +1,6 @@
 #pragma once
-#include "atf_library/atf.h";
-#include "ECCExecutorNew.h";
+#include "atf_library/atf.h"
+#include "ECCExecutorNew.h"
 
 class ECCTuner
 {
