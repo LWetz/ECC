@@ -10,8 +10,13 @@ private:
 	size_t size;
 	cl_mem memObj;
 	cl_mem_flags flags;
+	cl_event ev;
 
 public:
+	Buffer() : data(NULL), size(0), memObj(NULL), flags(0)
+	{
+
+	}
 
 	Buffer(size_t _size) : data(new uint8_t[_size]), size(_size), memObj(NULL), flags(0)
 	{

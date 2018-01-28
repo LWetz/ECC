@@ -112,12 +112,12 @@ public:
 		if (err != CL_SUCCESS)
 		{
 			std::cout << "OpenCL Error: " << err << std::endl;
+			throw std::exception(std::to_string(err).c_str());
 		}
 	}
 
-	static bool buildProgramFromFile(const std::string& fileName, cl_program& program, std::string options = "")
+	static bool buildProgramFromSource(const std::string& source, cl_program& program, std::string options = "")
 	{
-		std::string source = Util::loadFileToString(fileName);
 		const char* str = source.c_str();
 		cl_int ret;
 
@@ -143,6 +143,12 @@ public:
 		}
 
 		return true;
+	}
+
+	static bool buildProgramFromFile(const std::string& fileName, cl_program& program, std::string options = "")
+	{
+		std::string source = Util::loadFileToString(fileName);
+		return buildProgramFromSource(source, program, options);
 	}
 
 	static cl_mem createBuffer(cl_mem_flags flags, size_t size)

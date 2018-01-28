@@ -376,40 +376,6 @@ public:
 		finalReduceKernel->setGlobalSize(params["NUM_WG_INSTANCES_FR"] * params["NUM_WI_INSTANCES_FR"], params["NUM_WG_LABELS_FR"] * params["NUM_WI_LABELS_FR"], params["NUM_WI_CHAINS_FR"]);
 		finalReduceKernel->setLocalSize(params["NUM_WI_INSTANCES_FR"], params["NUM_WI_LABELS_FR"], params["NUM_WI_CHAINS_FR"]);
 
-		bool sizesok = stepCalcKernel->verifyWorkgroupSize();
-        sizesok = sizesok && stepReduceKernel->verifyWorkgroupSize();
-        sizesok = sizesok && finalCalcKernel->verifyWorkgroupSize();
-        sizesok = sizesok && finalReduceKernel->verifyWorkgroupSize();
-
-		if(!sizesok)
-        {
-            std::cout << "Workgroup too large" << std::endl;
-            newCPUTime = newKernelTime = newLoopFinalTime = newLoopStepTime = newRemainFinalTime = newRemainStepTime = std::numeric_limits<int>::max();
-
-			for (int n = 0; n < data.getLabelCount()*data.getSize(); ++n)
-            {
-		        values.push_back(0.0);
-                votes.push_back(0);
-	        }
-
-		    dataBuffer.clear();
-        	resultBuffer.clear();
-			labelBuffer.clear();
-        	stepIntermediateBuffer.clear();
-	        finalIntermediateBuffer.clear();
-			stepNodeValueBuffer.clear();
-			stepNodeIndexBuffer.clear();
-
-			delete stepCalcKernel;
-			delete stepReduceKernel;
-			delete finalCalcKernel;
-			delete finalReduceKernel;
-
-			delete[] allData;
-
-            return;
-        }
-
 		params["NUM_INSTANCES"] = params["NUM_INSTANCES_L"];
 		params["NUM_WG_INSTANCES_SC"] = params["NUM_WG_INSTANCES_SC_L"];
 		params["NUM_WI_INSTANCES_SC"] = params["NUM_WI_INSTANCES_SC_L"];
@@ -493,45 +459,6 @@ public:
 		finalReduceKernelLast->setDim(3);
 		finalReduceKernelLast->setGlobalSize(params["NUM_WG_INSTANCES_FR"] * params["NUM_WI_INSTANCES_FR"], params["NUM_WG_LABELS_FR"] * params["NUM_WI_LABELS_FR"], params["NUM_WI_CHAINS_FR"]);
 		finalReduceKernelLast->setLocalSize(params["NUM_WI_INSTANCES_FR"], params["NUM_WI_LABELS_FR"], params["NUM_WI_CHAINS_FR"]);
-
-		sizesok = stepCalcKernelLast->verifyWorkgroupSize();
-		sizesok = sizesok && stepReduceKernelLast->verifyWorkgroupSize();
-		sizesok = sizesok && finalCalcKernelLast->verifyWorkgroupSize();
-		sizesok = sizesok && finalReduceKernelLast->verifyWorkgroupSize();
-
-		if (!sizesok)
-		{
-			std::cout << "Workgroup too large" << std::endl;
-			newCPUTime = newKernelTime = newLoopFinalTime = newLoopStepTime = newRemainFinalTime = newRemainStepTime = std::numeric_limits<int>::max();
-
-			for (int n = 0; n < data.getLabelCount()*data.getSize(); ++n)
-			{
-				values.push_back(0.0);
-				votes.push_back(0);
-			}
-
-			dataBuffer.clear();
-			resultBuffer.clear();
-			labelBuffer.clear();
-			stepIntermediateBuffer.clear();
-			finalIntermediateBuffer.clear();
-			stepNodeValueBuffer.clear();
-			stepNodeIndexBuffer.clear();
-
-			delete stepCalcKernel;
-			delete stepReduceKernel;
-			delete finalCalcKernel;
-			delete finalReduceKernel;
-
-			delete stepCalcKernelLast;
-			delete stepReduceKernelLast;
-			delete finalCalcKernelLast;
-			delete finalReduceKernelLast;
-
-			delete[] allData;
-
-			return;
-		}
 
 		OutputAtom* allResults = new OutputAtom[data.getLabelCount()*data.getSize()];
 		double SCTime = 0.0, SRTime = 0.0, FCTime = 0.0, FRTime = 0.0;

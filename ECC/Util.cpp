@@ -71,7 +71,7 @@ namespace Util
 
 	int randomInt(int bound)
 	{
-		return RANDOM.nextInt(bound);
+		//return RANDOM.nextInt(bound);
 		return randomInt(0, bound);
 	}
 

@@ -137,7 +137,7 @@ public:
 
 		buildKernel->setDim(1);
 		buildKernel->setGlobalSize(globalSize);
-		buildKernel->setLocalSize(4);
+		buildKernel->setLocalSize(3);
 
 		double totalTime = .0;
 
@@ -153,12 +153,12 @@ public:
 		buildKernel->SetArg(10, chainSize);
 		buildKernel->SetArg(11, maxSplits);
 		buildKernel->SetArg(12, forestSize);
-		buildKernel->SetArg(13, instancesBuffer, true);
-		buildKernel->SetArg(14, instancesNextBuffer, true);
-		buildKernel->SetArg(15, instancesLengthBuffer, true);
-		buildKernel->SetArg(16, instancesNextLengthBuffer, true);
-		buildKernel->SetArg(17, tmpNodeValueBuffer, true);
-		buildKernel->SetArg(18, tmpNodeIndexBuffer, true);
+		buildKernel->SetArg(13, instancesBuffer);
+		buildKernel->SetArg(14, instancesNextBuffer);
+		buildKernel->SetArg(15, instancesLengthBuffer);
+		buildKernel->SetArg(16, instancesNextLengthBuffer);
+		buildKernel->SetArg(17, tmpNodeValueBuffer);
+		buildKernel->SetArg(18, tmpNodeIndexBuffer);
 		buildKernel->SetArg(19, voteBuffer, true);
 
 		Util::StopWatch stopWatch;
@@ -191,6 +191,7 @@ public:
 				++gidMultiplier;
 			}
 		}
+
 		std::cout << "Build took " << ((double)stopWatch.stop())*1e-06 << " ms total." << std::endl;
 		std::cout << "Build took " << ((double)totalTime)*1e-06 << " ms kernel time." << std::endl;
 
