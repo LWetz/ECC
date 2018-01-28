@@ -1,3 +1,5 @@
+#define TREES_PER_ITEM (TOTAL_TREES/(NUM_WI*NUM_WG))
+
 //32768
 constant double MAX_RND = 4294967296;
 
@@ -48,8 +50,6 @@ double informationGain(
 	double randomValue,
 	int randomIndex,
 	int labelIndex,
-	int numValues,
-	int numAttributes,
 	global int* instances,
 	int instancesStart,
 	int splitStack,
@@ -64,9 +64,9 @@ double informationGain(
 	for (int dataIndex = 0; dataIndex < splitSize; ++dataIndex)
 	{
 		int instanceIndex = instances[instancesStart + splitStack + dataIndex];
-		int labelValue = data[instanceIndex * numValues + numAttributes + labelIndex];
+		int labelValue = data[instanceIndex * NUM_VALUES + NUM_ATTRIBUTES + labelIndex];
 
-		if (data[instanceIndex * numValues + randomIndex] > randomValue)
+		if (data[instanceIndex * NUM_VALUES + randomIndex] > randomValue)
 		{
 
 			if (labelValue == 1)
@@ -125,13 +125,9 @@ splitStruct findSplit(
 	int instancesStart,
 	int instancesLengthIndex,
 	int instancesNextLengthIndex,
-	int numValues,
-	int numAttributes,
 	int labelAt,
-	int chainSize,
 	global int* labelOrder,
 	int splitStack,
-	int maxAttributes,
 	int* seed
 )
 {
@@ -139,34 +135,34 @@ splitStruct findSplit(
 	double bestValue = 0;
 	int bestIndex = 0;
 	int splitSize = instancesLength[instancesLengthIndex];
-	int lpred = labelAt % chainSize;
+	int lpred = labelAt % NUM_LABELS;
 	int lstart = labelAt - lpred;
 
 	if (splitSize > 0)
 	{
-		for (int attributeCounter = 0; attributeCounter < maxAttributes; ++attributeCounter)
+		for (int attributeCounter = 0; attributeCounter < MAX_ATTRIBUTES; ++attributeCounter)
 		{
 			int randomInstance = instances[instancesStart + splitStack + randomInt(splitSize, seed)];
 
 			int randomIndex;
 			if (lpred <= 0)
 			{
-				randomIndex = randomInt(numAttributes, seed);
+				randomIndex = randomInt(NUM_ATTRIBUTES, seed);
 			}
 			else
 			{
-				randomIndex = randomInt(numValues, seed);
+				randomIndex = randomInt(NUM_VALUES, seed);
 			}
 
-			if (randomIndex >= numAttributes)
+			if (randomIndex >= NUM_ATTRIBUTES)
 			{
 				int lran = randomInt(lpred, seed);
-				randomIndex = numAttributes + labelOrder[lstart + lran];
+				randomIndex = NUM_ATTRIBUTES + labelOrder[lstart + lran];
 			}
 
-			double randomValue = data[(randomInstance * numValues) + randomIndex];
+			double randomValue = data[(randomInstance * NUM_VALUES) + randomIndex];
 
-			double gain = informationGain(data, randomValue, randomIndex, labelOrder[labelAt], numValues, numAttributes, instances, instancesStart, splitStack, splitSize);
+			double gain = informationGain(data, randomValue, randomIndex, labelOrder[labelAt], instances, instancesStart, splitStack, splitSize);
 			if (gain > bestGain)
 			{
 				bestGain = gain;
@@ -181,7 +177,7 @@ splitStruct findSplit(
 		int leftSize = 0;
 		for (int index = 0; index < splitSize; ++index)
 		{
-			if (data[instances[instancesStart + splitStack + index] * numValues + bestIndex] <= bestValue)
+			if (data[instances[instancesStart + splitStack + index] * NUM_VALUES + bestIndex] <= bestValue)
 			{
 				instancesNext[instancesStart + splitStack + instancesIndex] = instances[instancesStart + splitStack + index];
 				++instancesIndex;
@@ -193,7 +189,7 @@ splitStruct findSplit(
 		int rightSize = 0;
 		for (int index = 0; index < splitSize; ++index)
 		{
-			if (data[instances[instancesStart + splitStack + index] * numValues + bestIndex] > bestValue)
+			if (data[instances[instancesStart + splitStack + index] * NUM_VALUES + bestIndex] > bestValue)
 			{
 				instancesNext[instancesStart + splitStack + instancesIndex] = instances[instancesStart + splitStack + index];
 				++instancesIndex;
@@ -221,12 +217,8 @@ void train(
 	global double* data,
 	global double* nodeValues,
 	global int* attributeIndices,
-	global int* numVotes,
 	int gid,
-	int numValues,
-	int numAttributes,
 	int label,
-	int maxLevel,
 	int instance,
 	int root
 )
@@ -238,12 +230,12 @@ void train(
 	int attributeIndex;
 	double value;
 
-	for (int level = 0; level < maxLevel; ++level)
+	for (int level = 0; level < MAX_LEVEL; ++level)
 	{
 		nodeValue = nodeValues[root + nodeIndex];
 		attributeIndex = attributeIndices[root + nodeIndex];
 
-		value = data[instance * numValues + attributeIndex];
+		value = data[instance * NUM_VALUES + attributeIndex];
 
 		if (value > nodeValue)
 		{
@@ -259,7 +251,7 @@ void train(
 
 	int vote;
 
-	if (data[instance * numValues + numAttributes + label] == 1)
+	if (data[instance * NUM_VALUES + NUM_ATTRIBUTES + label] == 1)
 	{
 		vote = 1;
 	}
@@ -269,25 +261,16 @@ void train(
 	}
 
 	nodeValues[root + nodeIndex] += vote;
-
-	int numLeaves = pown(2.f, maxLevel);
-	numVotes[gid * numLeaves + nodeIndex - (numLeaves - 1)] += 1;
 }
 
 void reduceToSigns(
 	global double* nodeValues,
-	global int* numVotes,
-	int gid,
-	int maxLevel
+	int gid
 )
 {
-	int nodesPerTree = pown(2.f, maxLevel + 1) - 1;
-	int numLeaves = pown(2.f, maxLevel);
-	int nodesLastLevel = pown(2.f, maxLevel - 1) - 1;
+	int nodesStart = gid * NODES_PER_TREE + NODES_LAST_LEVEL - 1;
 
-	int nodesStart = gid * nodesPerTree + numLeaves - 1;
-
-	for (int node = 0; node < numLeaves; ++node)
+	for (int node = 0; node < NODES_LAST_LEVEL; ++node)
 	{
 		double nodeValue = nodeValues[nodesStart + node];
 
@@ -303,54 +286,44 @@ void reduceToSigns(
 		{
 			nodeValues[nodesStart + node] = 0;
 		}
-
 	}
 }
 
-kernel void eccBuild(       //input (read-only)
-	int gidMultiplier,
+void buildTree(
+	int gid,
+	int gidOffset,
 	global int* seeds,
 	global double* data,
-	int dataSize,
-	int SubSetSize,
 	global int* labelOrder,
-	int numValues,
-	int numAttributes,
-	int maxAttributes,
-	int maxLevel,
-	int chainSize,
-	int maxSplits,
-	int forestSize,
-	//read-write
 	global int* instances,
 	global int* instancesNext,
 	global int* instancesLength,
 	global int* instancesNextLength,
 	global double* nodeValues,
-	global int* attributeIndices,
-	global int* numVotes
+	global int* attributeIndices
 )
 {
-	int gid = get_global_id(0);
-	int realGid = gid + gidMultiplier * get_global_size(0);
-	int nodesLastLevel = pown(2.f, maxLevel);
-	int nodesPerTree = pown(2.f, maxLevel + 1) - 1;
-	int instancesStart = maxSplits * gid;
-	int instancesLengthStart = nodesLastLevel * gid;
-	int rootNode = nodesPerTree * gid;
-	int labelAt = (int)floor((float)realGid / (float)forestSize);
+	int realGid = gid + gidOffset;
+	int instancesStart = MAX_SPLITS * gid;
+	int instancesLengthStart = NODES_LAST_LEVEL * gid;
+	int rootNode = NODES_PER_TREE * gid;
+	int labelAt = realGid / NUM_TREES;
 	int seed = seeds[gid];
 
-	instancesLength[instancesLengthStart] = maxSplits;
+	instancesLength[instancesLengthStart] = MAX_SPLITS;
+
+	for (int n = NODES_PER_TREE / 2; n < NODES_PER_TREE; ++n)
+	{
+		nodeValues[gid * NODES_PER_TREE + n] = 0;
+	}
 
 	int nodesSoFar = 0;
-	for (int level = 0; level < maxLevel; ++level)
+	for (int level = 0; level < MAX_LEVEL; ++level)
 	{
-		int maxNodes = pown(2.f, level);
+		int maxNodes = 1 << level;
 		int splitStack = 0;
 		for (int node = 0; node < maxNodes; ++node)
 		{
-
 			splitStruct split = findSplit(
 				data,
 				instances,
@@ -360,13 +333,9 @@ kernel void eccBuild(       //input (read-only)
 				instancesStart,
 				instancesLengthStart + node, //instancesLengthIndex
 				instancesLengthStart + (node * 2), //instancesNextLengthIndex
-				numValues,
-				numAttributes,
 				labelAt,
-				chainSize,
 				labelOrder,
 				splitStack,
-				maxAttributes,
 				&seed
 			);
 
@@ -376,7 +345,7 @@ kernel void eccBuild(       //input (read-only)
 			attributeIndices[rootNode + nodesSoFar + node] = split.index;
 		}
 
-		for (int i = 0; i < maxSplits; ++i)
+		for (int i = 0; i < MAX_SPLITS; ++i)
 		{
 			instances[instancesStart + i] = instancesNext[instancesStart + i];
 		}
@@ -389,27 +358,56 @@ kernel void eccBuild(       //input (read-only)
 		nodesSoFar += maxNodes;
 	}
 
-	for (int instance = 0; instance < dataSize; ++instance)
+	for (int instance = 0; instance < NUM_INSTANCES; ++instance)
 	{
 		train(
 			data,
 			nodeValues,
 			attributeIndices,
-			numVotes,
 			gid,
-			numValues,
-			numAttributes,
 			labelOrder[labelAt],
-			maxLevel,
 			instance,
-			nodesPerTree * gid
+			NODES_PER_TREE * gid
 		);
 	}
 
 	reduceToSigns(
 		nodeValues,
-		numVotes,
-		gid,
-		maxLevel
+		gid
 	);
+}
+
+kernel void eccBuild(
+		int gidOffset,
+		global int* seeds,
+		global double* data,
+		global int* labelOrder,
+		global int* instances,
+		global int* instancesNext,
+		global int* instancesLength,
+		global int* instancesNextLength,
+		global double* nodeValues,
+		global int* attributeIndices
+	)
+{
+	int i_wg_tree = get_group_id(0);
+
+	int i_wi_tree = get_local_id(0);
+
+	for (int t = 0; t < TREES_PER_ITEM; ++t)
+	{
+		int tree = i_wi_tree + i_wg_tree * NUM_WI + t * NUM_WG * NUM_WI;
+
+		buildTree(tree,
+			gidOffset,
+			seeds,
+			data,
+			labelOrder,
+			instances,
+			instancesNext,
+			instancesLength,
+			instancesNextLength,
+			nodeValues,
+			attributeIndices);
+	}
 }
