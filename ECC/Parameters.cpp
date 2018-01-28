@@ -48,7 +48,7 @@ int calcTreesPerRun(int treeLimit, int totalTrees)
 	return treeLimit;
 }
 
-std::string makeFileName(char* dataset, char* pname, int maxLevel, int numChains, int numTrees)
+std::string makeFileName(const char* dataset, const char* pname, int maxLevel, int numChains, int numTrees)
 {
 	std::string datasetstr(dataset);
 
@@ -111,8 +111,8 @@ std::map<std::string, int> readConfigFile(std::string fileName)
 int main(int argc, char* argv[]) {
 	if (argc < 2) { std::cout << "First argument has to be 'tune', 'measure' or 'measureold'" << std::endl; return -1; }
 
-	char* pname = getCmdOption(argv + 2, argv + argc, "-platform");
-	char* dname = getCmdOption(argv + 2, argv + argc, "-device");
+	const char* pname = getCmdOption(argv + 2, argv + argc, "-platform");
+	const char* dname = getCmdOption(argv + 2, argv + argc, "-device");
 
 	pname = pname ? pname : "NVIDIA";
 	dname = dname ? dname : "k20m";

@@ -36,7 +36,7 @@ private:
 		eccEx.tuneClassifyFinal(cfgmap);
 	}
 
-	double tuneClassifyBuildFunc(atf::configuration config)
+	double tuneBuildFunc(atf::configuration config)
 	{
 		eccEx.tuneBuild(config["NUM_WI"], config["NUM_WG"]);
 	}
@@ -44,12 +44,12 @@ private:
 	void tuneBuild(int treesPerRun)
 	{
 		auto tp_NUM_WG = atf::tp("NUM_WG", atf::interval(1, treesPerRun),
-			[&](auto tp_NUM_WG_CHAINS_SC) { return (treesPerRun % tp_NUM_WG) == 0; });
+			[&](auto tp_NUM_WG) { return (treesPerRun % tp_NUM_WG) == 0; });
 		auto tp_NUM_WI = atf::tp("NUM_WI", atf::interval(1, treesPerRun),
-			[&](auto tp_NUM_WI_CHAINS_SC) { return ((treesPerRun / tp_NUM_WG) % tp_NUM_WI) == 0; });
+			[&](auto tp_NUM_WI) { return ((treesPerRun / tp_NUM_WG) % tp_NUM_WI) == 0; });
 
 		auto tuner = atf::exhaustive();//atf::open_tuner(atf::cond::evaluations(1000));
-		auto best_config = tunerStep(G(tp_NUM_WG, tp_NUM_WI))(tuneClassifyBuildFunc);
+		auto best_config = tuner(G(tp_NUM_WG, tp_NUM_WI))(std::bind(&ECCTuner::tuneBuildFunc, this, std::placeholders::_1));
 
 		for (auto it = best_config.begin(); it != best_config.end(); ++it)
 		{
@@ -75,11 +75,11 @@ private:
 			[&](auto tp_NUM_WI_TREES_SR) { return (tp_NUM_WG_TREES_SC % tp_NUM_WI_TREES_SR) == 0; });
 
 		auto tuner = atf::exhaustive();//atf::open_tuner(atf::cond::evaluations(1000));
-		auto best_config = tunerStep(
+		auto best_config = tuner(
 			G(tp_NUM_WG_CHAINS_SC, tp_NUM_WI_CHAINS_SC),
 			G(tp_NUM_WG_INSTANCES_SC, tp_NUM_WI_INSTANCES_SC),
 			G(tp_NUM_WG_TREES_SC, tp_NUM_WI_TREES_SC, tp_NUM_WI_TREES_SR)
-		)(tuneClassifyStepFunc);
+		)(std::bind(&ECCTuner::tuneClassifyStepFunc, this, std::placeholders::_1));
 
 		for (auto it = best_config.begin(); it != best_config.end(); ++it)
 		{
@@ -105,11 +105,11 @@ private:
 			[&](auto tp_NUM_WI_CHAINS_FR) { return (tp_NUM_WG_CHAINS_FC % tp_NUM_WI_CHAINS_FR) == 0; });
 
 		auto tuner = atf::exhaustive();
-		auto best_config = tunerFinal(
+		auto best_config = tuner(
 			G(tp_NUM_WG_CHAINS_FC, tp_NUM_WI_CHAINS_FC, tp_NUM_WI_CHAINS_FR),
 			G(tp_NUM_WG_INSTANCES_FC, tp_NUM_WI_INSTANCES_FC),
 			G(tp_NUM_WG_LABELS_FC, tp_NUM_WI_LABELS_FC)
-		)(tuneFinalStepFunc);
+		)(std::bind(&ECCTuner::tuneClassifyFinalFunc, this, std::placeholders::_1));
 
 		for (auto it = best_config.begin(); it != best_config.end(); ++it)
 		{

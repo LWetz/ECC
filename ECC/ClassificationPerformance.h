@@ -1,12 +1,13 @@
 #pragma once
 #include <vector>
+#include <cmath>
 
 bool isSameResult(std::vector<double> valFirst, std::vector<int> voteFirst, std::vector<double> valSecond, std::vector<int> voteSecond)
 {
 	bool sameResult = true;
 	for (int i = 0; i < valFirst.size() && sameResult; ++i)
 	{
-		if (abs(valFirst[i] - valSecond[i]) > 0.001)
+		if (std::abs(valFirst[i] - valSecond[i]) > 0.001)
 		{
 			sameResult = false;
 		}
