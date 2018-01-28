@@ -29,9 +29,9 @@ public:
 
 	void tune(ECCData& buildData, int treesPerRun, ECCData& classifyData);
 
-	auto getBestBuildConfig();
-	auto getBestStepConfig();
-	auto getBestFinalConfig();
+	std::map<std::string, int> getBestBuildConfig();
+	std::map<std::string, int> getBestStepConfig();
+	std::map<std::string, int> getBestFinalConfig();
 };
 
 #endif

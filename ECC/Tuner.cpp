@@ -124,17 +124,17 @@ void ECCTuner::tune(ECCData& buildData, int treesPerRun, ECCData& classifyData)
 	eccEx.finishClassify();
 }
 
-auto ECCTuner::getBestBuildConfig()
+std::map<std::string, int> ECCTuner::getBestBuildConfig()
 {
 	return bestBuildConfig;
 }
 
-auto ECCTuner::getBestStepConfig()
+std::map<std::string, int> ECCTuner::getBestStepConfig()
 {
 	return bestStepConfig;
 }
 
-auto ECCTuner::getBestFinalConfig()
+std::map<std::string, int> ECCTuner::getBestFinalConfig()
 {
 	return bestFinalConfig;
 }
