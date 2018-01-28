@@ -112,7 +112,7 @@ public:
 		if (err != CL_SUCCESS)
 		{
 			std::cout << "OpenCL Error: " << err << std::endl;
-			throw std::exception(std::to_string(err).c_str());
+			throw std::exception();
 		}
 	}
 
