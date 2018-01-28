@@ -244,27 +244,6 @@ int main(int argc, char* argv[]) {
 
 		writeConfigFile(config, makeFileName(dataset, pname, maxLevel, numChains, numTrees));
 #endif
-		ECCExecutorNew eccEx(maxLevel, numAttributes, numAttributes, numTrees, numLabels, numChains, ensembleSubSetSize, forestSubSetSize);
-		eccEx.prepareBuild(trainData, treesPerRun);
-		for (int wi = 1; wi < treesPerRun; ++wi)
-		{
-			for (int wg = 1; wg < treesPerRun; ++wg)
-			{
-				if ((treesPerRun % wg) != 0 || ((treesPerRun / wg) % wi) != 0)
-					continue;
-
-				std::cout << "WG=" << wg << " WI=" << wi << " => ";
-				try {
-					std::cout << eccEx.tuneBuild(wi, wg)*1e-09 << std::endl;
-				}
-				catch (...)
-				{
-					std::cout << "ERROR" << std::endl;
-				}
-			}
-		}
-		eccEx.finishBuild();
-		system("Pause");
 	}
 	else if (std::string(argv[1]).compare("measure") == 0)
 	{
