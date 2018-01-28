@@ -1,9 +1,8 @@
 #pragma once
 
 #ifndef _WIN32
-
-#include "atf_library/atf.h"
 #include "ECCExecutorNew.hpp"
+#include "atf_library/include/tp_value.hpp"
 
 class ECCTuner
 {

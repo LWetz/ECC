@@ -1,6 +1,7 @@
 #include "Tuner.hpp"
 
 #ifndef _WIN32
+#include "atf_library/atf.h"
 
 double ECCTuner::tuneClassifyStepFunc(atf::configuration config)
 {
