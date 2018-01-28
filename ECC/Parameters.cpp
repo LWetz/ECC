@@ -223,6 +223,7 @@ int main(int argc, char* argv[]) {
 	std::cout << "TOTAL_TREES: " << totalTrees << std::endl;
 	std::cout << "ENSEMBLE_SUBSET: " << ensembleSubSetSize << std::endl;
 	std::cout << "FOREST_SUBSET: " << forestSubSetSize << std::endl;
+	std::cout << "TREES_PER_RUN: " << treesPerRun << std::endl;
 
 	if (std::string(argv[1]).compare("tune") == 0)
 	{
