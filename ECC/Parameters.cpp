@@ -212,17 +212,17 @@ int main(int argc, char* argv[]) {
 
 	int treesPerRun = calcTreesPerRun(treeLimit, totalTrees);
 
-	std::cout << "Platform: " << pname;
-	std::cout << "Device: " << dname;
-	std::cout << "Dataset: " << dataset;
-	std::cout << "NUM_LABELS: " << numLabels;
-	std::cout << "NUM_ATTRIBUTES: " << numAttributes;
-	std::cout << "MAX_LEVEL: " << maxLevel;
-	std::cout << "NUM_TREES: " << numTrees;
-	std::cout << "NUM_CHAINS: " << numChains;
-	std::cout << "TOTAL_TREES: " << totalTrees;
-	std::cout << "ENSEMBLE_SUBSET: " << ensembleSubSetSize;
-	std::cout << "FOREST_SUBSET: " << forestSubSetSize;
+	std::cout << "Platform: " << pname << std::endl;
+	std::cout << "Device: " << dname << std::endl;
+	std::cout << "Dataset: " << dataset << std::endl;
+	std::cout << "NUM_LABELS: " << numLabels << std::endl;
+	std::cout << "NUM_ATTRIBUTES: " << numAttributes << std::endl;
+	std::cout << "MAX_LEVEL: " << maxLevel << std::endl;
+	std::cout << "NUM_TREES: " << numTrees << std::endl;
+	std::cout << "NUM_CHAINS: " << numChains << std::endl;
+	std::cout << "TOTAL_TREES: " << totalTrees << std::endl;
+	std::cout << "ENSEMBLE_SUBSET: " << ensembleSubSetSize << std::endl;
+	std::cout << "FOREST_SUBSET: " << forestSubSetSize << std::endl;
 
 	if (std::string(argv[1]).compare("tune") == 0)
 	{
