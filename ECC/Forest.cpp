@@ -1,4 +1,4 @@
-#include "Forest.h"
+#include "Forest.hpp"
 Forest::Forest(int _numValues, int _maxLevel, int _label, std::vector<int>& _excludeLabelIndices, int _forestSize)
 	: maxLevel(_maxLevel), label(_label), excludeLabels(_excludeLabelIndices), forestSize(_forestSize), forest(),
 	treeSize(pow(2, maxLevel + 1) - 1), totalSize(treeSize*forestSize)

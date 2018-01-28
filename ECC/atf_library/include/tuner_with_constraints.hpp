@@ -114,6 +114,7 @@ class tuner_with_constraints : public tuner
   
     configuration best_configuration() const;
   
+	size_t search_space_size()		const;
 
   private:
     template< typename... Ts, typename... rest_tp_tuples >

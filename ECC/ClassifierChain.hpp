@@ -1,7 +1,7 @@
 #pragma once
 #include <vector>
 #include <array>
-#include "Forest.h"
+#include "Forest.hpp"
 
 class ClassifierChain
 {

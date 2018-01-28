@@ -1,4 +1,4 @@
-#include "ClassifierChain.h"
+#include "ClassifierChain.hpp"
 
 ClassifierChain::ClassifierChain(int _numValues, std::vector<int> _orderedLabels, int _maxLevel, int _forestSize)
 	: maxLevel(_maxLevel), forestSize(_forestSize), chainSize(_orderedLabels.size()), orderedLabels(_orderedLabels),

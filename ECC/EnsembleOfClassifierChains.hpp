@@ -1,8 +1,8 @@
 #pragma once
 #include<vector>
 #include<algorithm>
-#include"ClassifierChain.h"
-#include"Util.h"
+#include"ClassifierChain.hpp"
+#include"Util.hpp"
 
 class EnsembleOfClassifierChains
 {

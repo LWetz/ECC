@@ -1,4 +1,4 @@
-#include "EnsembleOfClassifierChains.h"
+#include "EnsembleOfClassifierChains.hpp"
 
 EnsembleOfClassifierChains::EnsembleOfClassifierChains(int _numValues, int _numLabels, int _maxLevel, int _forestSize, int _ensembleSize, int _ensembleSubSetSize, int _forestSubSetSize)
 	: numValues(_numValues), numAttributes(numValues - numLabels), numLabels(_numLabels), maxLevel(_maxLevel), forestSize(_forestSize), chainSize(_numLabels), ensembleSize(_ensembleSize),

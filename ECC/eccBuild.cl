@@ -231,47 +231,47 @@ void train(
             int root
             )
 {
-    int right;
-    int nodeIndex = 0;
-    
-    double nodeValue;
-    int attributeIndex;
-    double value;
+	int right;
+	int nodeIndex = 0;
 
-    for(int level = 0; level < maxLevel; ++level)
-    {
-        nodeValue = nodeValues[root + nodeIndex];
-        attributeIndex = attributeIndices[root + nodeIndex];
+	double nodeValue;
+	int attributeIndex;
+	double value;
 
-        value = data[instance * numValues + attributeIndex];
+	for (int level = 0; level < maxLevel; ++level)
+	{
+		nodeValue = nodeValues[root + nodeIndex];
+		attributeIndex = attributeIndices[root + nodeIndex];
 
-        if(value > nodeValue) 
-        {
-            right = 2;
-        }
-        else
-        {   
-            right = 1;
-        }
+		value = data[instance * numValues + attributeIndex];
 
-        nodeIndex = nodeIndex * 2 + right;
-    }
+		if (value > nodeValue)
+		{
+			right = 2;
+		}
+		else
+		{
+			right = 1;
+		}
 
-    int vote;
+		nodeIndex = nodeIndex * 2 + right;
+	}
 
-    if(data[instance * numValues + numAttributes + label] == 1) 
-    {
-        vote = 1;
-    }
-    else 
-    {
-        vote = -1;
-    }
+	int vote;
+
+	if (data[instance * numValues + numAttributes + label] == 1)
+	{
+		vote = 1;
+	}
+	else
+	{
+		vote = -1;
+	}
 
 	nodeValues[root + nodeIndex] += vote;
 
-    int numLeaves = pown(2.f, maxLevel);
-    numVotes[gid * numLeaves + nodeIndex - (numLeaves - 1)] += 1;
+	int numLeaves = pown(2.f, maxLevel);
+	numVotes[gid * numLeaves + nodeIndex - (numLeaves - 1)] += 1;
 }
 
 void reduceToSigns(
@@ -342,6 +342,11 @@ kernel void eccBuild(       //input (read-only)
     int seed = seeds[gid];
 
     instancesLength[instancesLengthStart] = maxSplits;
+
+	for (int n = nodesPerTree / 2; n < nodesPerTree; ++n)
+	{
+		nodeValues[gid * nodesPerTree + n] = 0;
+	}
 
     int nodesSoFar = 0;
     for(int level = 0; level < maxLevel; ++level)
