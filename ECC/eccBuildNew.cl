@@ -1,4 +1,4 @@
-//#define TREES_PER_ITEM (TOTAL_TREES/(NUM_WI*NUM_WG))
+#define TREES_PER_ITEM (TOTAL_TREES/(NUM_WI*NUM_WG))
 
 constant double MAX_RND = 4294967296;
 
@@ -393,7 +393,7 @@ kernel void eccBuild(
 
 	int i_wi_tree = get_local_id(0);
 
-	for (int t = 0; t < (TOTAL_TREES / (NUM_WI*NUM_WG)); ++t)
+	for (int t = 0; t < TREES_PER_ITEM; ++t)
 	{
 		int tree = i_wi_tree + i_wg_tree * NUM_WI + t * NUM_WG * NUM_WI;
 
