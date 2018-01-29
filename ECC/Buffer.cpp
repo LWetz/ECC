@@ -4,17 +4,19 @@
 
 Buffer::Buffer() : data(NULL), size(0), memObj(NULL), flags(0)
 {
-
+	std::cout << "0 Construct" << std::endl;
 }
 
 Buffer::Buffer(size_t _size) : data(new uint8_t[_size]), size(_size), memObj(NULL), flags(0)
 {
+	std::cout << "Host Construct" << std::endl;
 	memset(data, 0, size);
 }
 
 Buffer::Buffer(size_t _size, cl_mem_flags _flags)
 	: data(new uint8_t[_size]), size(_size), memObj(NULL), flags(0)
 {
+	std::cout << "Device Construct" << std::endl;
 	memset(data, 0, size);
 	buildMemObj(_flags);
 }
@@ -67,9 +69,11 @@ cl_mem Buffer::getMem() const
 
 void Buffer::clear()
 {
+	std::cout << "Delete (1/2)" << std::endl;
 	delete[] data;
 	if (memObj != NULL)
 	{
+		std::cout << "Delete (2/2)" << std::endl;
 		PlatformUtil::checkError(clReleaseMemObject(memObj));
 	}
 }
