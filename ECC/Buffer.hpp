@@ -29,6 +29,8 @@ public:
 	size_t getSize() const;
 	cl_mem getMem() const;
 
+	size_t getTransferTime();
+
 	void clear();
 };
 

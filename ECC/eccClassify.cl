@@ -1,6 +1,6 @@
-float traverse(
-                        global float* data,
-                        global float* nodeValues,
+double traverse(
+                        global double* data,
+                        global double* nodeValues,
                         int forestSize,
                         int maxLevel,
                         int nodesPerTree,
@@ -21,10 +21,10 @@ float traverse(
     for(int level = 0; level < maxLevel; ++level)
     {
         int tmpNodeIndex = startNodeIndex + (treeIndex * nodesPerTree + nodeIndex);
-        float nodeValue = nodeValues[tmpNodeIndex];
+        double nodeValue = nodeValues[tmpNodeIndex];
         int attributeIndex = attributeIndices[tmpNodeIndex];
 
-        float value = data[gid * numValues + attributeIndex];
+        double value = data[gid * numValues + attributeIndex];
 
         if(value > nodeValue) 
         {
@@ -45,23 +45,23 @@ float traverse(
 
 kernel void eccClassify(
                             //input (read-only)
-                            global float* nodeValues,
+                            global double* nodeValues,
                             global int* attributeIndices,
                             global int* labelOrders,
                             global int* pMaxLevel, 
                             global int* pForestSize,
                             global int* pNumChains, //equal to numLabels
                             global int* pNumEnsembles,
-                            global float* data, 
+                            global double* data, 
                             global int* pNumValues,
                             //output (read-write)
-                            global float* results,
+                            global double* results,
                             //output (write-only)
                             global int* votes
                         ) 
 { 
     int gid = get_global_id(0);
-    int nodesPerTree = native_powr(2.f, *pMaxLevel + 1) - 1;
+    int nodesPerTree = pown(2.f, *pMaxLevel + 1) - 1;
     int maxLevel = *pMaxLevel;
     int numValues = *pNumValues;
     int numEnsembles = *pNumEnsembles;
@@ -79,7 +79,7 @@ kernel void eccClassify(
 
             for(int treeIndex = 0; treeIndex < forestSize; ++treeIndex)
             {
-                float value = traverse(
+                double value = traverse(
                     data, 
                     nodeValues, 
                     forestSize, 

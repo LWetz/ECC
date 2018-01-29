@@ -12,25 +12,19 @@ private:
 	int numTrees;
 	int numLabels;
 
-	std::map<std::string, int> bestBuildConfig;
-	std::map<std::string, int> bestStepConfig;
-	std::map<std::string, int> bestFinalConfig;
-
 	double tuneClassifyStepFunc(atf::configuration config);
 	double tuneClassifyFinalFunc(atf::configuration config);
 	double tuneBuildFunc(atf::configuration config);
 
-	void tuneBuild(int treesPerRun);
-	void tuneClassifyStep(int numInstances);
-	void tuneClassifyFinal(int numInstances);
+	void runBuildTuner(int treesPerRun);
+	void runClassifyStepTuner(int numInstances);
+	void runClassifyFinalTuner(int numInstances);
 public:
 	ECCTuner(int _maxLevel, int _maxAttributes, int _numAttributes, int _numTrees, int _numLabels, int _numChains, int _ensembleSubSetSize, int _forestSubSetSize);
 
-	void tune(ECCData& buildData, int treesPerRun, ECCData& classifyData);
-
-	std::map<std::string, int> getBestBuildConfig();
-	std::map<std::string, int> getBestStepConfig();
-	std::map<std::string, int> getBestFinalConfig();
+	Configuration tuneBuild(ECCData& buildData, int treesPerRun);
+	Configuration tuneClassifyStep(ECCData& buildData, int treesPerRun, ECCData& classifyData, Configuration config);
+	Configuration tuneClassifyFinal(ECCData& buildData, int treesPerRun, ECCData& classifyData, Configuration config);
 };
 
 #endif

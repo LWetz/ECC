@@ -4,18 +4,15 @@
 
 Buffer::Buffer() : data(NULL), size(0), memObj(NULL), flags(0)
 {
-
 }
 
 Buffer::Buffer(size_t _size) : data(new uint8_t[_size]), size(_size), memObj(NULL), flags(0)
 {
-	memset(data, 0, size);
 }
 
 Buffer::Buffer(size_t _size, cl_mem_flags _flags)
 	: data(new uint8_t[_size]), size(_size), memObj(NULL), flags(0)
 {
-	memset(data, 0, size);
 	buildMemObj(_flags);
 }
 
@@ -27,22 +24,22 @@ void Buffer::buildMemObj(cl_mem_flags flags)
 
 void Buffer::write()
 {
-	PlatformUtil::checkError(clEnqueueWriteBuffer(PlatformUtil::getCommandQueue(), memObj, CL_TRUE, 0, size, data, 0, NULL, NULL));
+	PlatformUtil::checkError(clEnqueueWriteBuffer(PlatformUtil::getCommandQueue(), memObj, CL_TRUE, 0, size, data, 0, NULL, &ev));
 }
 
 void Buffer::writeFrom(void* buffer, size_t buffSize)
 {
-	PlatformUtil::checkError(clEnqueueWriteBuffer(PlatformUtil::getCommandQueue(), memObj, CL_TRUE, 0, buffSize, buffer, 0, NULL, NULL));
+	PlatformUtil::checkError(clEnqueueWriteBuffer(PlatformUtil::getCommandQueue(), memObj, CL_TRUE, 0, buffSize, buffer, 0, NULL, &ev));
 }
 
 void Buffer::read()
 {
-	PlatformUtil::checkError(clEnqueueReadBuffer(PlatformUtil::getCommandQueue(), memObj, CL_TRUE, 0, size, data, 0, NULL, NULL));
+	PlatformUtil::checkError(clEnqueueReadBuffer(PlatformUtil::getCommandQueue(), memObj, CL_TRUE, 0, size, data, 0, NULL, &ev));
 }
 
 void Buffer::readTo(void* buffer, size_t buffSize)
 {
-	PlatformUtil::checkError(clEnqueueReadBuffer(PlatformUtil::getCommandQueue(), memObj, CL_TRUE, 0, buffSize, buffer, 0, NULL, NULL));
+	PlatformUtil::checkError(clEnqueueReadBuffer(PlatformUtil::getCommandQueue(), memObj, CL_TRUE, 0, buffSize, buffer, 0, NULL, &ev));
 }
 
 cl_mem_flags Buffer::getFlags() const
@@ -74,6 +71,16 @@ void Buffer::clear()
 	}
 }
 
+size_t Buffer::getTransferTime()
+{
+	clWaitForEvents(1, &ev);
+
+	cl_ulong time_start, time_end;
+
+	clGetEventProfilingInfo(ev, CL_PROFILING_COMMAND_START, sizeof(time_start), &time_start, NULL);
+	clGetEventProfilingInfo(ev, CL_PROFILING_COMMAND_END, sizeof(time_end), &time_end, NULL);
+	return time_end - time_start;
+}
 
 ConstantBuffer::ConstantBuffer(int constant) : Buffer(sizeof(constant), CL_MEM_READ_ONLY)
 {

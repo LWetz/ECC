@@ -26,18 +26,19 @@ class ECCExecutorOld
 	int ensembleSize;
 	int maxAttributes;
 
-	size_t oldTime;
-
 	std::vector<int> partitionInstances(ECCData& data, EnsembleOfClassifierChains& ecc);
+
+	Measurement measurement;
 public:
 	ECCExecutorOld(int _maxLevel, int _maxAttributes, int _forestSize);
 
-	void runBuild(ECCData& data, int treesPerRun, int ensembleSize, int chainsPerRun, int ensembleSubSetSize, int forestSubSetSize);
+	void runBuild(ECCData& data, int treeLimit, int ensembleSize, int ensembleSubSetSize, int forestSubSetSize);
 
 public:
-	void runClassifyOld(ECCData& data, std::vector<double>& values, std::vector<int>& votes, bool fix = true);
+	void runClassify(ECCData& data, std::vector<double>& values, std::vector<int>& votes, bool fix = true);
 
-	size_t getTime();
+	Measurement getMeasurement();
+
 	~ECCExecutorOld();
 };
 

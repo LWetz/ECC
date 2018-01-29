@@ -2,9 +2,9 @@
 
 #include<CL/cl.h>
 
-#include"EnsembleOfClassifierChains.hpp"
-#include"PlatformUtil.hpp"
-#include"ECCData.hpp"
+#include "EnsembleOfClassifierChains.hpp"
+#include "PlatformUtil.hpp"
+#include "ECCData.hpp"
 #include "Kernel.hpp"
 #include <chrono>
 #include <climits>
@@ -62,6 +62,8 @@ class ECCExecutorNew
 
 	ClassifyData *classifyData;
 
+	Measurement measurement;
+
 public:
 	ECCExecutorNew(int _maxLevel, int _maxAttributes, int _numAttributes, int _numTrees, int _numLabels, int _numChains, int _ensembleSubSetSize, int _forestSubSetSize);
 
@@ -80,11 +82,13 @@ private:
 
 public:
 	void prepareClassify(ECCData& data);
-	double tuneClassifyStep(std::map<std::string, int> config, int oneStep = true);
-	double tuneClassifyFinal(std::map<std::string, int> config);
+	double tuneClassifyStep(Configuration config, int oneStep = true);
+	double tuneClassifyFinal(Configuration config);
 	void finishClassify();
 
-	void runClassifyNew(ECCData& data, std::vector<double>& values, std::vector<int>& votes, std::map<std::string, int> config);
+	void runClassify(ECCData& data, std::vector<double>& values, std::vector<int>& votes, Configuration config);
+
+	Measurement getMeasurement();
 
 	~ECCExecutorNew();
 };

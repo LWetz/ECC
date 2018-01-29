@@ -65,7 +65,7 @@ void Kernel::setLocalSize(std::vector<size_t> ls)
 	localSize = ls;
 }
 
-double Kernel::getRuntime()
+size_t Kernel::getRuntime()
 {
 	clWaitForEvents(1, &ev);
 

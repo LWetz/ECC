@@ -47,12 +47,13 @@ int calcTreesPerRun(int nodeLimit, int totalTrees, int nodesPerTree)
 		return totalTrees;
 
 	while (totalTrees % treeLimit != 0)
-		treeLimit--;
+		--treeLimit;
 
 	return treeLimit;
 }
 
-std::string makeFileName(const char* dataset, const char* pname, int maxLevel, int numChains, int numTrees)
+
+std::string makeFileName(const char* prefix, const char* dataset, const char* pname, int maxLevel, int numChains, int numTrees)
 {
 	std::string datasetstr(dataset);
 
@@ -65,28 +66,40 @@ std::string makeFileName(const char* dataset, const char* pname, int maxLevel, i
 	datasetstr = datasetstr.substr(slash + 1, dot - slash - 1);
 
 	std::stringstream fileName;
-	fileName << "config_" << pname << "_" << datasetstr << "_" << maxLevel << "_" << numTrees << "_" << numChains << ".txt";
+	fileName << prefix << pname << "_" << datasetstr << "_" << maxLevel << "_" << numTrees << "_" << numChains << ".txt";
 	return fileName.str();
 }
 
-void writeConfigFile(std::map<std::string, int> config, std::string fileName)
+std::string makeConfigFileName(const char* dataset, const char* pname, int maxLevel, int numChains, int numTrees)
+{
+	return makeFileName("config_", dataset, pname, maxLevel, numChains, numTrees);
+}
+
+std::string makeMeasureFileName(const char* dataset, const char* pname, int maxLevel, int numChains, int numTrees)
+{
+	return makeFileName("measure_", dataset, pname, maxLevel, numChains, numTrees);
+}
+
+template<typename T>
+void makeKeyValFile(T keyval, std::string fileName)
 {
 	std::ofstream file(fileName);
-	for (auto it = config.begin(); it != config.end(); ++it)
+	for (auto it = keyval.begin(); it != keyval.end(); ++it)
 	{
 		file << it->first << "=" << it->second << std::endl;
 	}
 	file.close();
 }
 
-std::map<std::string, int> readConfigFile(std::string fileName)
+template<typename T>
+T readKeyValFile(std::string fileName)
 {
 	std::ifstream file(fileName);
-	std::map<std::string, int> config;
+	T keyval;
 
 	if (!file.is_open())
 	{
-		std::cout << "No config file found, tune before measuring" << std::endl;
+		std::cout << "No Key-Value file found, tune before measuring" << std::endl;
 		exit(-5);
 	}
 
@@ -100,20 +113,34 @@ std::map<std::string, int> readConfigFile(std::string fileName)
 				throw;
 			}
 
-			config[line.substr(0, split)] = std::stoi(line.substr(split+1));
+			keyval[line.substr(0, split)] = std::stoi(line.substr(split+1));
 		}
 	}
 	catch (...)
 	{
-		std::cout << "Couldnt parse config file" << std::endl;
+		std::cout << "Couldnt parse Key-Value file" << std::endl;
+		file.close();
 		exit(-6);
 	}
 
-	return config;
+	file.close();
+	return keyval;
+}
+
+template<typename T>
+void updateConfigFile(T keyval, std::string fileName)
+{
+	auto oldConf = readKeyValFile<T>(fileName);
+	for (auto it = keyval.begin(); it != keyval.end(); ++it)
+	{
+		oldConf[it->first] = it->second;
+	}
+
+	makeKeyValFile<T>(oldConf, fileName);
 }
 
 int main(int argc, char* argv[]) {
-	if (argc < 2) { std::cout << "First argument has to be 'tune', 'measure' or 'measureold'" << std::endl; return -1; }
+	if (argc < 2) { std::cout << "First argument has to be 'tuneBuild', 'tuneStep', 'tuneFinal', 'measure' or 'measureold'" << std::endl; return -1; }
 
 	const char* pname = getCmdOption(argv + 2, argv + argc, "-platform");
 	const char* dname = getCmdOption(argv + 2, argv + argc, "-device");
@@ -218,6 +245,9 @@ int main(int argc, char* argv[]) {
 
 	int treesPerRun = calcTreesPerRun(nodeLimit, totalTrees, nodesPerTree);
 
+	std::string configFileName = makeConfigFileName(dataset, pname, maxLevel, numChains, numTrees);
+	std::string measureFileName = makeMeasureFileName(dataset, pname, maxLevel, numChains, numTrees);
+
 	std::cout << "Platform: " << pname << std::endl;
 	std::cout << "Device: " << dname << std::endl;
 	std::cout << "Dataset: " << dataset << std::endl;
@@ -231,59 +261,50 @@ int main(int argc, char* argv[]) {
 	std::cout << "FOREST_SUBSET: " << forestSubSetSize << std::endl;
 	std::cout << "TREES_PER_RUN: " << treesPerRun << std::endl;
 
-	if (std::string(argv[1]).compare("tune") == 0)
+	if (std::string(argv[1]).compare("tuneBuild") == 0)
 	{
 #ifndef _WIN32
 		ECCTuner tuner(maxLevel, numAttributes, numAttributes, numTrees, numLabels, numChains, ensembleSubSetSize, forestSubSetSize);
-		tuner.tune(trainData, treesPerRun, evalData);
-		
-		auto config = tuner.getBestBuildConfig();
-		auto stepConfig = tuner.getBestStepConfig();
-		auto finalConfig = tuner.getBestFinalConfig();
-
-		config.insert(stepConfig.begin(), stepConfig.end());
-		config.insert(finalConfig.begin(), finalConfig.end());
-
-		writeConfigFile(config, makeFileName(dataset, pname, maxLevel, numChains, numTrees));
+		auto config = tuner.tuneBuild(trainData, treesPerRun);
+		makeKeyValFile<Configuration>(config, configFileName);
 #endif
-				ECCExecutorNew eccEx(maxLevel, numAttributes, numAttributes, numTrees, numLabels, numChains, ensembleSubSetSize, forestSubSetSize);
-		eccEx.prepareBuild(trainData, treesPerRun);
-		for (int wi = 1; wi < treesPerRun; ++wi)
-		{
-			for (int wg = 1; wg < treesPerRun; ++wg)
-			{
-				if ((treesPerRun % wg) != 0 || ((treesPerRun / wg) % wi) != 0)
-					continue;
-
-				std::cout << "WG=" << wg << " WI=" << wi << " => ";
-				try {
-					std::cout << eccEx.tuneBuild(wi, wg)*1e-09 << std::endl;
-				}
-				catch (...)
-				{
-					std::cout << "ERROR" << std::endl;
-				}
-			}
-		}
-		eccEx.finishBuild();
-		system("Pause");
+	}
+	else if (std::string(argv[1]).compare("tuneStep") == 0)
+	{
+#ifndef _WIN32
+		ECCTuner tuner(maxLevel, numAttributes, numAttributes, numTrees, numLabels, numChains, ensembleSubSetSize, forestSubSetSize);
+		auto config = readKeyValFile<Configuration>(configFileName);
+		config = tuner.tuneClassifyStep(trainData, treesPerRun, evalData, config);
+		updateKeyValFile<Configuration>(config, configFileName);
+#endif
+	}
+	else if (std::string(argv[1]).compare("tuneFinal") == 0)
+	{
+#ifndef _WIN32
+		ECCTuner tuner(maxLevel, numAttributes, numAttributes, numTrees, numLabels, numChains, ensembleSubSetSize, forestSubSetSize);
+		auto config = readKeyValFile<Configuration>(configFileName);
+		config = tuner.tuneClassifyFinal(trainData, treesPerRun, evalData, config);
+		updateKeyValFile<Configuration>(config, configFileName);
+#endif
 	}
 	else if (std::string(argv[1]).compare("measure") == 0)
 	{
-		auto config = readConfigFile(makeFileName(dataset, pname, maxLevel, numChains, numTrees));
+		auto config = readKeyValFile<Configuration>(configFileName);
 		std::vector<double> values;
 		std::vector<int> votes;
 		ECCExecutorNew eccEx(maxLevel, numAttributes, numAttributes, numTrees, numLabels, numChains, ensembleSubSetSize, forestSubSetSize);
 		eccEx.runBuild(trainData, treesPerRun, config["NUM_WI"], config["NUM_WG"]);
-		eccEx.runClassifyNew(trainData, values, votes, config);
+		eccEx.runClassify(trainData, values, votes, config);
+		makeKeyValFile<Measurement>(eccEx.getMeasurement(), measureFileName);
 	}
 	else if (std::string(argv[1]).compare("measureold") == 0)
 	{
 		std::vector<double> values;
 		std::vector<int> votes;
 		ECCExecutorOld eccEx(maxLevel, numAttributes, numTrees);
-		eccEx.runBuild(trainData, 1, numChains, 1, ensembleSubSetSize, forestSubSetSize);
-		eccEx.runClassifyOld(evalData, values, votes);
+		eccEx.runBuild(trainData, treesPerRun, numChains, ensembleSubSetSize, forestSubSetSize);
+		eccEx.runClassify(evalData, values, votes);
+		makeKeyValFile<Measurement>(eccEx.getMeasurement(), measureFileName);
 	}
 
 	PlatformUtil::deinit();

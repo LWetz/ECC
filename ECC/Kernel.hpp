@@ -41,7 +41,7 @@ public:
 	void setGlobalSize(std::vector<size_t> gs);
 	void setLocalSize(std::vector<size_t> ls);
 
-	double getRuntime();
+	size_t getRuntime();
 
 	void execute();
 };

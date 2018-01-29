@@ -116,7 +116,7 @@ bool PlatformUtil::buildProgramFromSource(const std::string& source, cl_program&
 	}
 
 	options += " -cl-nv-verbose";
-	if (clBuildProgram(program, 1, &device, options.c_str(), NULL, NULL) != CL_SUCCESS)
+	if ((ret = clBuildProgram(program, 1, &device, options.c_str(), NULL, NULL)) != CL_SUCCESS)
 	{
 		std::cout << "Couldn't build program" << std::endl;
 

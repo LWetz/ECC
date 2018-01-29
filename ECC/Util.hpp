@@ -6,6 +6,7 @@
 #include<string>
 #include<chrono>
 #include<algorithm>
+#include<map>
 
 namespace Util
 {
@@ -42,3 +43,6 @@ namespace Util
 
 	extern Random RANDOM;
 }
+
+typedef std::map<std::string, size_t> Measurement;
+typedef std::map<std::string, size_t> Configuration;
