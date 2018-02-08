@@ -426,7 +426,7 @@ double ECCExecutorNew::tuneClassifyStep(Configuration config, int oneStep)
 		stepReduceKernel = new Kernel(prog, "stepReduce");
 		clReleaseProgram(prog);
 
-		int stepIntermediateBufferSize[3] = { classifyData->numInstances, numChains, config["NUM_WG_TREES_SC"] };
+		int stepIntermediateBufferSize[3] = { classifyData->numInstances, numChains, (int)config["NUM_WG_TREES_SC"] };
 		int stepIntermediateBufferTotalSize = stepIntermediateBufferSize[0] * stepIntermediateBufferSize[1] * stepIntermediateBufferSize[2];
 
 		int localBufferSize_SC = config["NUM_WI_INSTANCES_SC"] * config["NUM_WI_CHAINS_SC"] * config["NUM_WI_TREES_SC"];
