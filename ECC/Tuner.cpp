@@ -4,6 +4,7 @@
 #include "atf_library/atf.h"
 
 #define EXHAUSTIVE_THRESHOLD 50000
+#define ONE ((size_t)1)
 
 template<typename... G_CLASSES >
 std::unique_ptr<atf::tuner_with_constraints> make_tuner(G_CLASSES... G_classes)
@@ -61,9 +62,9 @@ double ECCTuner::tuneBuildFunc(atf::configuration config)
 
 Configuration ECCTuner::runBuildTuner(size_t treesPerRun)
 {
-	auto tp_NUM_WG = atf::tp("NUM_WG", atf::interval(1, treesPerRun),
+	auto tp_NUM_WG = atf::tp("NUM_WG", atf::interval(ONE, treesPerRun),
 		[&](auto tp_NUM_WG) { return (treesPerRun % tp_NUM_WG) == 0; });
-	auto tp_NUM_WI = atf::tp("NUM_WI", atf::interval(1, treesPerRun),
+	auto tp_NUM_WI = atf::tp("NUM_WI", atf::interval(ONE, treesPerRun),
 		[&](auto tp_NUM_WI) { return ((treesPerRun / tp_NUM_WG) % tp_NUM_WI) == 0; });
 
 	auto tuner = make_tuner(G(tp_NUM_WG, tp_NUM_WI));
@@ -79,19 +80,19 @@ Configuration ECCTuner::runBuildTuner(size_t treesPerRun)
 
 Configuration ECCTuner::runClassifyStepTuner(size_t numInstances)
 {
-	auto tp_NUM_WG_CHAINS_SC = atf::tp("NUM_WG_CHAINS_SC", atf::interval(1, numChains),
+	auto tp_NUM_WG_CHAINS_SC = atf::tp("NUM_WG_CHAINS_SC", atf::interval(ONE, numChains),
 		[&](auto tp_NUM_WG_CHAINS_SC) { return (numChains % tp_NUM_WG_CHAINS_SC) == 0; });
-	auto tp_NUM_WG_INSTANCES_SC = atf::tp("NUM_WG_INSTANCES_SC", atf::interval(1, (int)numInstances),
+	auto tp_NUM_WG_INSTANCES_SC = atf::tp("NUM_WG_INSTANCES_SC", atf::interval(ONE, (int)numInstances),
 		[&](auto tp_NUM_WG_INSTANCES_SC) { return (numInstances % tp_NUM_WG_INSTANCES_SC) == 0; });
-	auto tp_NUM_WG_TREES_SC = atf::tp("NUM_WG_TREES_SC", atf::interval(1, numTrees),
+	auto tp_NUM_WG_TREES_SC = atf::tp("NUM_WG_TREES_SC", atf::interval(ONE, numTrees),
 		[&](auto tp_NUM_WG_TREES_SC) { return (numTrees % tp_NUM_WG_TREES_SC) == 0; });
-	auto tp_NUM_WI_CHAINS_SC = atf::tp("NUM_WI_CHAINS_SC", atf::interval(1, numChains),
+	auto tp_NUM_WI_CHAINS_SC = atf::tp("NUM_WI_CHAINS_SC", atf::interval(ONE, numChains),
 		[&](auto tp_NUM_WI_CHAINS_SC) { return ((numChains / tp_NUM_WG_CHAINS_SC) % tp_NUM_WI_CHAINS_SC) == 0; });
-	auto tp_NUM_WI_INSTANCES_SC = atf::tp("NUM_WI_INSTANCES_SC", atf::interval(1, (int)numInstances),
+	auto tp_NUM_WI_INSTANCES_SC = atf::tp("NUM_WI_INSTANCES_SC", atf::interval(ONE, (int)numInstances),
 		[&](auto tp_NUM_WI_INSTANCES_SC) { return ((numInstances / tp_NUM_WG_INSTANCES_SC) % tp_NUM_WI_INSTANCES_SC) == 0; });
-	auto tp_NUM_WI_TREES_SC = atf::tp("NUM_WI_TREES_SC", atf::interval(1, numTrees),
+	auto tp_NUM_WI_TREES_SC = atf::tp("NUM_WI_TREES_SC", atf::interval(ONE, numTrees),
 		[&](auto tp_NUM_WI_TREES_SC) { return ((numTrees / tp_NUM_WG_TREES_SC) % tp_NUM_WI_TREES_SC) == 0; });
-	auto tp_NUM_WI_TREES_SR = atf::tp("NUM_WI_TREES_SR", atf::interval(1, numTrees),
+	auto tp_NUM_WI_TREES_SR = atf::tp("NUM_WI_TREES_SR", atf::interval(1ul, numTrees),
 		[&](auto tp_NUM_WI_TREES_SR) { return (tp_NUM_WG_TREES_SC % tp_NUM_WI_TREES_SR) == 0; });
 
 	auto tuner = make_tuner(
@@ -110,19 +111,19 @@ Configuration ECCTuner::runClassifyStepTuner(size_t numInstances)
 
 Configuration ECCTuner::runClassifyFinalTuner(size_t numInstances)
 {
-	auto tp_NUM_WG_CHAINS_FC = atf::tp("NUM_WG_CHAINS_FC", atf::interval(1, numChains),
+	auto tp_NUM_WG_CHAINS_FC = atf::tp("NUM_WG_CHAINS_FC", atf::interval(ONE, numChains),
 		[&](auto tp_NUM_WG_CHAINS_FC) { return (numChains % tp_NUM_WG_CHAINS_FC) == 0; });
-	auto tp_NUM_WG_INSTANCES_FC = atf::tp("NUM_WG_INSTANCES_FC", atf::interval(1, (int)numInstances),
+	auto tp_NUM_WG_INSTANCES_FC = atf::tp("NUM_WG_INSTANCES_FC", atf::interval(ONE, (int)numInstances),
 		[&](auto tp_NUM_WG_INSTANCES_FC) { return (numInstances % tp_NUM_WG_INSTANCES_FC) == 0; });
-	auto tp_NUM_WG_LABELS_FC = atf::tp("NUM_WG_LABELS_FC", atf::interval(1, numLabels),
+	auto tp_NUM_WG_LABELS_FC = atf::tp("NUM_WG_LABELS_FC", atf::interval(ONE, numLabels),
 		[&](auto tp_NUM_WG_LABELS_FC) { return (numLabels % tp_NUM_WG_LABELS_FC) == 0; });
-	auto tp_NUM_WI_CHAINS_FC = atf::tp("NUM_WI_CHAINS_FC", atf::interval(1, numChains),
+	auto tp_NUM_WI_CHAINS_FC = atf::tp("NUM_WI_CHAINS_FC", atf::interval(ONE, numChains),
 		[&](auto tp_NUM_WI_CHAINS_FC) { return ((numChains / tp_NUM_WG_CHAINS_FC) % tp_NUM_WI_CHAINS_FC) == 0; });
-	auto tp_NUM_WI_INSTANCES_FC = atf::tp("NUM_WI_INSTANCES_FC", atf::interval(1, (int)numInstances),
+	auto tp_NUM_WI_INSTANCES_FC = atf::tp("NUM_WI_INSTANCES_FC", atf::interval(ONE, (int)numInstances),
 		[&](auto tp_NUM_WI_INSTANCES_FC) { return ((numInstances / tp_NUM_WG_INSTANCES_FC) % tp_NUM_WI_INSTANCES_FC) == 0; });
-	auto tp_NUM_WI_LABELS_FC = atf::tp("NUM_WI_LABELS_FC", atf::interval(1, numLabels),
+	auto tp_NUM_WI_LABELS_FC = atf::tp("NUM_WI_LABELS_FC", atf::interval(ONE, numLabels),
 		[&](auto tp_NUM_WI_LABELS_FC) { return ((numLabels / tp_NUM_WG_LABELS_FC) % tp_NUM_WI_LABELS_FC) == 0; });
-	auto tp_NUM_WI_CHAINS_FR = atf::tp("NUM_WI_CHAINS_FR", atf::interval(1, numChains),
+	auto tp_NUM_WI_CHAINS_FR = atf::tp("NUM_WI_CHAINS_FR", atf::interval(ONE, numChains),
 		[&](auto tp_NUM_WI_CHAINS_FR) { return (tp_NUM_WG_CHAINS_FC % tp_NUM_WI_CHAINS_FR) == 0; });
 
 	auto tuner = make_tuner(
