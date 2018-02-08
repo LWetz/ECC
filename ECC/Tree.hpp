@@ -1,6 +1,7 @@
 #pragma once
 #include <vector>
 #include <math.h>
+#include <stddef.h>
 
 class Tree
 {
