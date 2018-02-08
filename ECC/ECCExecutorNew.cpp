@@ -126,7 +126,7 @@ void ECCExecutorNew::prepareBuild(ECCData& data, int treesPerRun)
 	buildData->numInstances = data.getSize();
 }
 
-double ECCExecutorNew::tuneBuild(int workitems, int workgroups)
+double ECCExecutorNew::tuneBuild(size_t workitems, size_t workgroups)
 {
 	Kernel* buildKernel = NULL;
 
@@ -163,8 +163,8 @@ double ECCExecutorNew::tuneBuild(int workitems, int workgroups)
 		clReleaseProgram(prog);
 
 		buildKernel->setDim(1);
-		buildKernel->setGlobalSize(workgroups * workitems);
-		buildKernel->setLocalSize(workitems);
+		buildKernel->setGlobalSize({ workgroups * workitems });
+		buildKernel->setLocalSize({ workitems });
 
 		buildKernel->SetArg(0, 0);
 		buildKernel->SetArg(1, buildData->seedsBuffer);
@@ -201,7 +201,7 @@ void ECCExecutorNew::finishBuild()
 	delete buildData;
 }
 
-void ECCExecutorNew::runBuild(ECCData& data, int treesPerRun, int workitems, int workgroups)
+void ECCExecutorNew::runBuild(ECCData& data, int treesPerRun, size_t workitems, size_t workgroups)
 {
 	std::cout << std::endl << "--- BUILD ---" << std::endl;
 
@@ -274,8 +274,8 @@ void ECCExecutorNew::runBuild(ECCData& data, int treesPerRun, int workitems, int
 	int gidMultiplier = 0;
 
 	buildKernel->setDim(1);
-	buildKernel->setGlobalSize(workgroups * workitems);
-	buildKernel->setLocalSize(workitems);
+	buildKernel->setGlobalSize({ workgroups * workitems });
+	buildKernel->setLocalSize({ workitems });
 
 	buildKernel->SetArg(1, seedsBuffer);
 	buildKernel->SetArg(2, dataBuffer);
@@ -442,8 +442,8 @@ double ECCExecutorNew::tuneClassifyStep(Configuration config, int oneStep)
 		stepCalcKernel->SetArg(5, stepIntermediateBuffer);
 
 		stepCalcKernel->setDim(3);
-		stepCalcKernel->setGlobalSize(config["NUM_WG_INSTANCES_SC"] * config["NUM_WI_INSTANCES_SC"], config["NUM_WG_CHAINS_SC"] * config["NUM_WI_CHAINS_SC"], config["NUM_WG_TREES_SC"] * config["NUM_WI_TREES_SC"]);
-		stepCalcKernel->setLocalSize(config["NUM_WI_INSTANCES_SC"], config["NUM_WI_CHAINS_SC"], config["NUM_WI_TREES_SC"]);
+		stepCalcKernel->setGlobalSize({ config["NUM_WG_INSTANCES_SC"] * config["NUM_WI_INSTANCES_SC"], config["NUM_WG_CHAINS_SC"] * config["NUM_WI_CHAINS_SC"], config["NUM_WG_TREES_SC"] * config["NUM_WI_TREES_SC"] });
+		stepCalcKernel->setLocalSize({ config["NUM_WI_INSTANCES_SC"], config["NUM_WI_CHAINS_SC"], config["NUM_WI_TREES_SC"] });
 
 		stepReduceKernel->SetArg(0, stepIntermediateBuffer);
 		stepReduceKernel->SetArg(1, classifyData->labelBuffer);
@@ -451,8 +451,8 @@ double ECCExecutorNew::tuneClassifyStep(Configuration config, int oneStep)
 		stepReduceKernel->SetLocalArg(3, localBufferSize_SR * sizeof(TreeVote));
 
 		stepReduceKernel->setDim(3);
-		stepReduceKernel->setGlobalSize(config["NUM_WG_INSTANCES_SR"] * config["NUM_WI_INSTANCES_SR"], config["NUM_WG_CHAINS_SR"] * config["NUM_WI_CHAINS_SR"], config["NUM_WI_TREES_SR"]);
-		stepReduceKernel->setLocalSize(config["NUM_WI_INSTANCES_SR"], config["NUM_WI_CHAINS_SR"], config["NUM_WI_TREES_SR"]);
+		stepReduceKernel->setGlobalSize({ config["NUM_WG_INSTANCES_SR"] * config["NUM_WI_INSTANCES_SR"], config["NUM_WG_CHAINS_SR"] * config["NUM_WI_CHAINS_SR"], config["NUM_WI_TREES_SR"] });
+		stepReduceKernel->setLocalSize({ config["NUM_WI_INSTANCES_SR"], config["NUM_WI_CHAINS_SR"], config["NUM_WI_TREES_SR"] });
 
 		size_t stepModelSize = ecc->getTotalSize() / numLabels;
 		double time = 0.0;
@@ -532,16 +532,16 @@ double ECCExecutorNew::tuneClassifyFinal(Configuration config)
 		finalCalcKernel->SetArg(2, finalIntermediateBuffer);
 
 		finalCalcKernel->setDim(3);
-		finalCalcKernel->setGlobalSize(config["NUM_WG_INSTANCES_FC"] * config["NUM_WI_INSTANCES_FC"], config["NUM_WG_LABELS_FC"] * config["NUM_WI_LABELS_FC"], config["NUM_WG_CHAINS_FC"] * config["NUM_WI_CHAINS_FC"]);
-		finalCalcKernel->setLocalSize(config["NUM_WI_INSTANCES_FC"], config["NUM_WI_LABELS_FC"], config["NUM_WI_CHAINS_FC"]);
+		finalCalcKernel->setGlobalSize({ config["NUM_WG_INSTANCES_FC"] * config["NUM_WI_INSTANCES_FC"], config["NUM_WG_LABELS_FC"] * config["NUM_WI_LABELS_FC"], config["NUM_WG_CHAINS_FC"] * config["NUM_WI_CHAINS_FC"] });
+		finalCalcKernel->setLocalSize({config["NUM_WI_INSTANCES_FC"], config["NUM_WI_LABELS_FC"], config["NUM_WI_CHAINS_FC"]});
 
 		finalReduceKernel->SetArg(0, finalIntermediateBuffer);
 		finalReduceKernel->SetArg(1, classifyData->resultBuffer);
 		finalReduceKernel->SetLocalArg(2, localBufferSize_FR * sizeof(double));
 
 		finalReduceKernel->setDim(3);
-		finalReduceKernel->setGlobalSize(config["NUM_WG_INSTANCES_FR"] * config["NUM_WI_INSTANCES_FR"], config["NUM_WG_LABELS_FR"] * config["NUM_WI_LABELS_FR"], config["NUM_WI_CHAINS_FR"]);
-		finalReduceKernel->setLocalSize(config["NUM_WI_INSTANCES_FR"], config["NUM_WI_LABELS_FR"], config["NUM_WI_CHAINS_FR"]);
+		finalReduceKernel->setGlobalSize({ config["NUM_WG_INSTANCES_FR"] * config["NUM_WI_INSTANCES_FR"], config["NUM_WG_LABELS_FR"] * config["NUM_WI_LABELS_FR"], config["NUM_WI_CHAINS_FR"] });
+		finalReduceKernel->setLocalSize({ config["NUM_WI_INSTANCES_FR"], config["NUM_WI_LABELS_FR"], config["NUM_WI_CHAINS_FR"] });
 
 		finalCalcKernel->execute();
 		finalReduceKernel->execute();
@@ -665,8 +665,8 @@ std::vector<MultilabelPrediction> ECCExecutorNew::runClassify(ECCData& data, Con
 	stepCalcKernel->SetArg(5, stepIntermediateBuffer);
 
 	stepCalcKernel->setDim(3);
-	stepCalcKernel->setGlobalSize(config["NUM_WG_INSTANCES_SC"] * config["NUM_WI_INSTANCES_SC"], config["NUM_WG_CHAINS_SC"] * config["NUM_WI_CHAINS_SC"], config["NUM_WG_TREES_SC"] * config["NUM_WI_TREES_SC"]);
-	stepCalcKernel->setLocalSize(config["NUM_WI_INSTANCES_SC"], config["NUM_WI_CHAINS_SC"], config["NUM_WI_TREES_SC"]);
+	stepCalcKernel->setGlobalSize({ config["NUM_WG_INSTANCES_SC"] * config["NUM_WI_INSTANCES_SC"], config["NUM_WG_CHAINS_SC"] * config["NUM_WI_CHAINS_SC"], config["NUM_WG_TREES_SC"] * config["NUM_WI_TREES_SC"] });
+	stepCalcKernel->setLocalSize({ config["NUM_WI_INSTANCES_SC"], config["NUM_WI_CHAINS_SC"], config["NUM_WI_TREES_SC"] });
 
 	stepReduceKernel->SetArg(0, stepIntermediateBuffer);
 	stepReduceKernel->SetArg(1, labelBuffer);
@@ -674,8 +674,8 @@ std::vector<MultilabelPrediction> ECCExecutorNew::runClassify(ECCData& data, Con
 	stepReduceKernel->SetLocalArg(3, localBufferSize_SR * sizeof(TreeVote));
 
 	stepReduceKernel->setDim(3);
-	stepReduceKernel->setGlobalSize(config["NUM_WG_INSTANCES_SR"] * config["NUM_WI_INSTANCES_SR"], config["NUM_WG_CHAINS_SR"] * config["NUM_WI_CHAINS_SR"], config["NUM_WI_TREES_SR"]);
-	stepReduceKernel->setLocalSize(config["NUM_WI_INSTANCES_SR"], config["NUM_WI_CHAINS_SR"], config["NUM_WI_TREES_SR"]);
+	stepReduceKernel->setGlobalSize({ config["NUM_WG_INSTANCES_SR"] * config["NUM_WI_INSTANCES_SR"], config["NUM_WG_CHAINS_SR"] * config["NUM_WI_CHAINS_SR"], config["NUM_WI_TREES_SR"] });
+	stepReduceKernel->setLocalSize({ config["NUM_WI_INSTANCES_SR"], config["NUM_WI_CHAINS_SR"], config["NUM_WI_TREES_SR"] });
 
 	int finalIntermediateBufferSize[3] = { numInstances, numLabels, config["NUM_WG_CHAINS_FC"] };
 	int finalIntermediateBufferTotalSize = finalIntermediateBufferSize[0] * finalIntermediateBufferSize[1] * finalIntermediateBufferSize[2];
@@ -690,16 +690,16 @@ std::vector<MultilabelPrediction> ECCExecutorNew::runClassify(ECCData& data, Con
 	finalCalcKernel->SetArg(2, finalIntermediateBuffer);
 
 	finalCalcKernel->setDim(3);
-	finalCalcKernel->setGlobalSize(config["NUM_WG_INSTANCES_FC"] * config["NUM_WI_INSTANCES_FC"], config["NUM_WG_LABELS_FC"] * config["NUM_WI_LABELS_FC"], config["NUM_WG_CHAINS_FC"] * config["NUM_WI_CHAINS_FC"]);
-	finalCalcKernel->setLocalSize(config["NUM_WI_INSTANCES_FC"], config["NUM_WI_LABELS_FC"], config["NUM_WI_CHAINS_FC"]);
+	finalCalcKernel->setGlobalSize({ config["NUM_WG_INSTANCES_FC"] * config["NUM_WI_INSTANCES_FC"], config["NUM_WG_LABELS_FC"] * config["NUM_WI_LABELS_FC"], config["NUM_WG_CHAINS_FC"] * config["NUM_WI_CHAINS_FC"] });
+	finalCalcKernel->setLocalSize({ config["NUM_WI_INSTANCES_FC"], config["NUM_WI_LABELS_FC"], config["NUM_WI_CHAINS_FC"] });
 
 	finalReduceKernel->SetArg(0, finalIntermediateBuffer);
 	finalReduceKernel->SetArg(1, resultBuffer);
 	finalReduceKernel->SetLocalArg(2, localBufferSize_FR * sizeof(double));
 
 	finalReduceKernel->setDim(3);
-	finalReduceKernel->setGlobalSize(config["NUM_WG_INSTANCES_FR"] * config["NUM_WI_INSTANCES_FR"], config["NUM_WG_LABELS_FR"] * config["NUM_WI_LABELS_FR"], config["NUM_WI_CHAINS_FR"]);
-	finalReduceKernel->setLocalSize(config["NUM_WI_INSTANCES_FR"], config["NUM_WI_LABELS_FR"], config["NUM_WI_CHAINS_FR"]);
+	finalReduceKernel->setGlobalSize({ config["NUM_WG_INSTANCES_FR"] * config["NUM_WI_INSTANCES_FR"], config["NUM_WG_LABELS_FR"] * config["NUM_WI_LABELS_FR"], config["NUM_WI_CHAINS_FR"] });
+	finalReduceKernel->setLocalSize({ config["NUM_WI_INSTANCES_FR"], config["NUM_WI_LABELS_FR"], config["NUM_WI_CHAINS_FR"] });
 
 	measurement["classifyStepCalcKernel"] = 0;
 	measurement["classifyStepReduceKernel"] = 0;

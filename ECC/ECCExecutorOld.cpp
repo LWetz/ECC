@@ -71,7 +71,7 @@ void ECCExecutorOld::runBuild(ECCData& data, int treeLimit)
 	while (treeLimit % numLabels != 0 || totalTrees % treeLimit != 0)
 		--treeLimit;
 
-	int globalSize = treeLimit;
+	size_t globalSize = treeLimit;
 	int chunkSize = globalSize / numLabels;
 
 	int nodesLastLevel = pow(2.0f, maxLevel);
@@ -131,8 +131,8 @@ void ECCExecutorOld::runBuild(ECCData& data, int treeLimit)
 	int gidMultiplier = 0;
 
 	buildKernel->setDim(1);
-	buildKernel->setGlobalSize(globalSize);
-	buildKernel->setLocalSize(3);
+	buildKernel->setGlobalSize({ globalSize });
+	buildKernel->setLocalSize({ 3 });
 
 	buildKernel->SetArg(0, pGidMultiplier);
 	buildKernel->SetArg(1, seedsBuffer);
@@ -268,8 +268,8 @@ std::vector<MultilabelPrediction> ECCExecutorOld::runClassify(ECCData& data, boo
 	classifyKernel->SetArg(10, voteBuffer);
 
 	classifyKernel->setDim(1);
-	classifyKernel->setGlobalSize(data.getSize());
-	classifyKernel->setLocalSize(1);
+	classifyKernel->setGlobalSize({ data.getSize() });
+	classifyKernel->setLocalSize({ 1 });
 
 	classifyKernel->execute();
 

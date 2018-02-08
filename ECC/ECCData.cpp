@@ -130,7 +130,7 @@ int ECCData::getValueCount() const
 	return numLabels + numAttributes;
 }
 
-int ECCData::getSize() const
+size_t ECCData::getSize() const
 {
 	return instances.size();
 }

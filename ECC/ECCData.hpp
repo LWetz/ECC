@@ -51,6 +51,6 @@ public:
 	int getAttribCount() const;
 	int getLabelCount() const;
 	int getValueCount() const;
-	int getSize() const;
+	size_t getSize() const;
 };
 

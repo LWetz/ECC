@@ -68,10 +68,10 @@ public:
 	ECCExecutorNew(int _maxLevel, int _maxAttributes, int _numAttributes, int _numTrees, int _numLabels, int _numChains, int _ensembleSubSetSize, int _forestSubSetSize);
 
 	void prepareBuild(ECCData& data, int treesPerRun);
-	double tuneBuild(int workitems, int workgroups);
+	double tuneBuild(size_t workitems, size_t workgroups);
 	void finishBuild();
 
-	void runBuild(ECCData& data, int treesPerRun, int workitems, int workgroups);
+	void runBuild(ECCData& data, int treesPerRun, size_t workitems, size_t workgroups);
 
 private:
 	typedef struct TreeVote
