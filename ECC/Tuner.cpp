@@ -24,10 +24,12 @@ std::unique_ptr<atf::tuner_with_constraints> make_tuner(G_CLASSES... G_classes)
 	{
 		size_t evaluation = std::min(EXHAUSTIVE_THRESHOLD, int(0.25f * search_space_size));
 
-		return tuner = new atf::open_tuner_class<>(atf::cond::evaluations(evaluation));
+		tuner = new atf::open_tuner_class<>(atf::cond::evaluations(evaluation));
 	}
 
-	return std::unique_ptr<atf::tuner_with_constraints>(&(tuner->operator()(G_classes...)));
+	tuner = &(tuner->operator()(G_classes...));
+
+	return std::unique_ptr<atf::tuner_with_constraints>(tuner);
 }
 
 double ECCTuner::tuneClassifyStepFunc(atf::configuration config)
