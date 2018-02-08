@@ -118,8 +118,6 @@ double PredictionPerformance::logloss(std::vector<MultilabelInstance> trueSet, s
 
 			double ll = trueVal ? -log(confidence) : -log(1.0 - confidence);
 			logloss += logN < ll ? logN : ll;
-			if(_isnanf(logloss))
-				__debugbreak();
 		}
 	}
 
