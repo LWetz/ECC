@@ -27,7 +27,7 @@ std::unique_ptr<atf::tuner_with_constraints> make_tuner(G_CLASSES... G_classes)
 		return tuner = new atf::open_tuner_class<>(atf::cond::evaluations(evaluation));
 	}
 
-	return std::unique_ptr<atf::tuner_with_constraints>(tuner->operator()(G_classes...));
+	return std::unique_ptr<atf::tuner_with_constraints>(&(tuner->operator()(G_classes...)));
 }
 
 double ECCTuner::tuneClassifyStepFunc(atf::configuration config)
