@@ -44,5 +44,5 @@ namespace Util
 	extern Random RANDOM;
 }
 
-typedef std::map<std::string, size_t> Measurement;
+typedef std::map<std::string, double> Measurement;
 typedef std::map<std::string, size_t> Configuration;

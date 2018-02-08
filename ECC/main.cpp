@@ -3,6 +3,7 @@
 #endif
 #include "ECCExecutorNew.hpp"
 #include "ECCExecutorOld.hpp" 
+#include "PredictionPerformance.hpp"
 #include <fstream>
 
 char* getCmdOption(char ** begin, char ** end, const std::string & option)
@@ -68,16 +69,6 @@ std::string makeFileName(const char* prefix, const char* dataset, const char* pn
 	std::stringstream fileName;
 	fileName << prefix << pname << "_" << datasetstr << "_" << maxLevel << "_" << numTrees << "_" << numChains << ".txt";
 	return fileName.str();
-}
-
-std::string makeConfigFileName(const char* dataset, const char* pname, int maxLevel, int numChains, int numTrees)
-{
-	return makeFileName("config_", dataset, pname, maxLevel, numChains, numTrees);
-}
-
-std::string makeMeasureFileName(const char* dataset, const char* pname, int maxLevel, int numChains, int numTrees)
-{
-	return makeFileName("measure_", dataset, pname, maxLevel, numChains, numTrees);
 }
 
 template<typename T>
@@ -245,8 +236,9 @@ int main(int argc, char* argv[]) {
 
 	int treesPerRun = calcTreesPerRun(nodeLimit, totalTrees, nodesPerTree);
 
-	std::string configFileName = makeConfigFileName(dataset, pname, maxLevel, numChains, numTrees);
-	std::string measureFileName = makeMeasureFileName(dataset, pname, maxLevel, numChains, numTrees);
+	std::string configFileName = makeFileName("config_", dataset, pname, maxLevel, numChains, numTrees);
+	std::string measureFileName = makeFileName("measure_", dataset, pname, maxLevel, numChains, numTrees);
+	std::string oldMeasureFileName = makeFileName("oldmeasure_", dataset, pname, maxLevel, numChains, numTrees);
 
 	std::cout << "Platform: " << pname << std::endl;
 	std::cout << "Device: " << dname << std::endl;
@@ -294,17 +286,34 @@ int main(int argc, char* argv[]) {
 		std::vector<int> votes;
 		ECCExecutorNew eccEx(maxLevel, numAttributes, numAttributes, numTrees, numLabels, numChains, ensembleSubSetSize, forestSubSetSize);
 		eccEx.runBuild(trainData, treesPerRun, config["NUM_WI"], config["NUM_WG"]);
-		eccEx.runClassify(trainData, values, votes, config);
-		makeKeyValFile<Measurement>(eccEx.getMeasurement(), measureFileName);
+		auto predictions = eccEx.runClassify(evalData, config);
+
+		Measurement performance = eccEx.getMeasurement();
+		std::for_each(performance.begin(), performance.end(), [](auto &d) { d.second *= 1e-06; });
+
+		PredictionPerformance predictionPerformance(numLabels, evalOriginal.size(), 0.5f);
+		Measurement evaluation = predictionPerformance.calculatePerfomance(evalOriginal, predictions);
+		performance.insert(evaluation.begin(), evaluation.end());
+
+		makeKeyValFile<Measurement>(performance, measureFileName);
 	}
 	else if (std::string(argv[1]).compare("measureold") == 0)
 	{
 		std::vector<double> values;
 		std::vector<int> votes;
-		ECCExecutorOld eccEx(maxLevel, numAttributes, numTrees);
-		eccEx.runBuild(trainData, treesPerRun, numChains, ensembleSubSetSize, forestSubSetSize);
-		eccEx.runClassify(evalData, values, votes);
-		makeKeyValFile<Measurement>(eccEx.getMeasurement(), measureFileName);
+
+		ECCExecutorOld eccEx(maxLevel, numAttributes, numAttributes, numTrees, numLabels, numChains, ensembleSubSetSize, forestSubSetSize);
+		eccEx.runBuild(trainData, treesPerRun);
+		auto predictions = eccEx.runClassify(evalData);
+
+		Measurement performance = eccEx.getMeasurement();
+		std::for_each(performance.begin(), performance.end(), [](auto &d) { d.second *= 1e-06; });
+
+		PredictionPerformance predictionPerformance(numLabels, evalOriginal.size(), 0.5f);
+		Measurement evaluation = predictionPerformance.calculatePerfomance(evalOriginal, predictions);
+		performance.insert(evaluation.begin(), evaluation.end());
+
+		makeKeyValFile<Measurement>(performance, oldMeasureFileName);
 	}
 
 	PlatformUtil::deinit();

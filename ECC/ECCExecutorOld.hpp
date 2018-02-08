@@ -14,28 +14,30 @@ class ECCExecutorOld
 {
 	EnsembleOfClassifierChains *ecc;
 
-	bool partitionInstance;
-	bool oldKernelMode;
-
 	double* nodeValues;
 	int* nodeIndices;
 	Buffer labelOrderBuffer;
 	int maxLevel;
-	int forestSize;
-	int chainSize;
-	int ensembleSize;
+	int numTrees;
+	int numLabels;
+	int numChains;
 	int maxAttributes;
+	int numAttributes;
+
+	std::string buildSource;
+	std::string classifySource;
+	std::string classifyFixSource;
 
 	std::vector<int> partitionInstances(ECCData& data, EnsembleOfClassifierChains& ecc);
 
 	Measurement measurement;
 public:
-	ECCExecutorOld(int _maxLevel, int _maxAttributes, int _forestSize);
+	ECCExecutorOld(int _maxLevel, int _maxAttributes, int _numAttributes, int _numTrees, int _numLabels, int _numChains, int _ensembleSubSetSize, int _forestSubSetSize);
 
-	void runBuild(ECCData& data, int treeLimit, int ensembleSize, int ensembleSubSetSize, int forestSubSetSize);
+	void runBuild(ECCData& data, int treeLimit);
 
 public:
-	void runClassify(ECCData& data, std::vector<double>& values, std::vector<int>& votes, bool fix = true);
+	std::vector<MultilabelPrediction> runClassify(ECCData& data, bool fix = true);
 
 	Measurement getMeasurement();
 

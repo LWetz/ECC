@@ -21,7 +21,7 @@ public:
 	~Kernel();
 	void SetArg(size_t idx, int value);
 	void SetLocalArg(size_t idx, size_t size);
-	void SetArg(size_t idx, Buffer& buff, bool write = false);
+	void SetArg(size_t idx, Buffer& buff);
 	void setDim(size_t dimension);
 
 	template<typename ...DimSizes>

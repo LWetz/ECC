@@ -23,11 +23,8 @@ void Kernel::Kernel::SetLocalArg(size_t idx, size_t size)
 	PlatformUtil::checkError(clSetKernelArg(_kernel, idx, size, NULL));
 }
 
-void Kernel::SetArg(size_t idx, Buffer& buff, bool write)
+void Kernel::SetArg(size_t idx, Buffer& buff)
 {
-	if (write && buff.getFlags() != CL_MEM_WRITE_ONLY)
-		buff.write();
-
 	cl_mem mem = buff.getMem();
 	PlatformUtil::checkError(clSetKernelArg(_kernel, idx, sizeof(cl_mem), &mem));
 }

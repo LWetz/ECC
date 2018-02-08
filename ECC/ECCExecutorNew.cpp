@@ -44,16 +44,18 @@ ECCExecutorNew::ECCExecutorNew(int _maxLevel, int _maxAttributes, int _numAttrib
 	ecc = new EnsembleOfClassifierChains(_numAttributes + numLabels, numLabels, maxLevel, numTrees, numChains, _ensembleSubSetSize, _forestSubSetSize);
 
 	labelOrderBuffer = Buffer(sizeof(int) * ecc->getEnsembleSize() * ecc->getChainSize(), CL_MEM_READ_ONLY);
+	int* labelOrders = new int[ecc->getEnsembleSize() * ecc->getChainSize()];
 
 	int i = 0;
 	for (int chain = 0; chain < ecc->getEnsembleSize(); ++chain)
 	{
 		for (int forest = 0; forest < ecc->getChainSize(); ++forest)
 		{
-			static_cast<int*>(labelOrderBuffer.getData())[i++] = ecc->getChains()[chain].getLabelOrder()[forest];
+			labelOrders[i++] = ecc->getChains()[chain].getLabelOrder()[forest];
 		}
 	}
-	labelOrderBuffer.write();
+	labelOrderBuffer.writeFrom(labelOrders, labelOrderBuffer.getSize());
+	delete[] labelOrders;
 
 	nodeValues = new double[ecc->getTotalSize()];
 	nodeIndices = new int[ecc->getTotalSize()];
@@ -78,12 +80,15 @@ void ECCExecutorNew::prepareBuild(ECCData& data, int treesPerRun)
 
 	Buffer dataBuffer(data.getValueCount() * data.getSize() * sizeof(double), CL_MEM_READ_ONLY);
 
+	double* dataArray = new double[data.getValueCount() * data.getSize()];
 	int dataBuffIdx = 0;
 	for (MultilabelInstance inst : data.getInstances())
 	{
-		memcpy(static_cast<double*>(dataBuffer.getData()) + dataBuffIdx, inst.getData().data(), inst.getValueCount() * sizeof(double));
+		memcpy(dataArray + dataBuffIdx, inst.getData().data(), inst.getValueCount() * sizeof(double));
 		dataBuffIdx += inst.getValueCount();
 	}
+	dataBuffer.writeFrom(dataArray, dataBuffer.getSize());
+	delete[] dataArray;
 
 	int numValues = data.getValueCount();
 	int numAttributes = data.getAttribCount();
@@ -99,12 +104,13 @@ void ECCExecutorNew::prepareBuild(ECCData& data, int treesPerRun)
 
 	double totalTime = .0;
 
+	int* seeds = new int[treesPerRun];
 	for (int seed = 0; seed < treesPerRun; ++seed)
 	{
-		int rnd = Util::randomInt(INT_MAX);
-		static_cast<int*>(seedsBuffer.getData())[seed] = rnd;
+		seeds[seed] = Util::randomInt(INT_MAX);
 	}
-	seedsBuffer.write();
+	seedsBuffer.writeFrom(seeds, seedsBuffer.getSize());
+	delete[] seeds;
 
 	instancesBuffer.writeFrom(indicesList.data(), treesPerRun * maxSplits * sizeof(int));
 
@@ -162,7 +168,7 @@ double ECCExecutorNew::tuneBuild(int workitems, int workgroups)
 
 		buildKernel->SetArg(0, 0);
 		buildKernel->SetArg(1, buildData->seedsBuffer);
-		buildKernel->SetArg(2, buildData->dataBuffer, true);
+		buildKernel->SetArg(2, buildData->dataBuffer);
 		buildKernel->SetArg(3, labelOrderBuffer);
 		buildKernel->SetArg(4, buildData->instancesBuffer);
 		buildKernel->SetArg(5, buildData->instancesNextBuffer);
@@ -223,11 +229,16 @@ void ECCExecutorNew::runBuild(ECCData& data, int treesPerRun, int workitems, int
 	params["NUM_WI"] = workitems;
 	params["NUM_WG"] = workgroups;
 
+	Util::StopWatch buildCompileTime;
+	buildCompileTime.start();
+
 	std::string optionString;
 	std::stringstream strstr;
 	for (auto it = params.begin(); it != params.end(); ++it)
 		strstr << " -D " << it->first << "=" << it->second;
 	optionString = strstr.str();
+
+	measurement["buildCompileTime"] = buildCompileTime.stop();
 
 	cl_program prog;
 	PlatformUtil::buildProgramFromSource(buildSource, prog, optionString);
@@ -239,20 +250,22 @@ void ECCExecutorNew::runBuild(ECCData& data, int treesPerRun, int workitems, int
 
 	Buffer dataBuffer(data.getValueCount() * data.getSize() * sizeof(double), CL_MEM_READ_ONLY);
 
+	double* dataArray = new double[data.getValueCount() * data.getSize()];
 	int dataBuffIdx = 0;
 	for (MultilabelInstance inst : data.getInstances())
 	{
-		memcpy(static_cast<double*>(dataBuffer.getData()) + dataBuffIdx, inst.getData().data(), inst.getValueCount() * sizeof(double));
+		memcpy(dataArray + dataBuffIdx, inst.getData().data(), inst.getValueCount() * sizeof(double));
 		dataBuffIdx += inst.getValueCount();
 	}
+	dataBuffer.writeFrom(dataArray, dataBuffer.getSize());
+	delete[] dataArray;
 
 	int numValues = data.getValueCount();
 	int numAttributes = data.getAttribCount();
 
-	Buffer instancesBuffer(sizeof(int) * maxSplits*treesPerRun, CL_MEM_READ_WRITE);
-
 	std::vector<int> indicesList(partitionInstances(data, *ecc));
 
+	Buffer instancesBuffer(sizeof(int) * maxSplits*treesPerRun, CL_MEM_READ_WRITE);
 	Buffer instancesNextBuffer(sizeof(int) * maxSplits*treesPerRun, CL_MEM_READ_WRITE);
 	Buffer instancesLengthBuffer(sizeof(int) * nodesLastLevel*treesPerRun, CL_MEM_READ_WRITE);
 	Buffer instancesNextLengthBuffer(sizeof(int) * nodesLastLevel*treesPerRun, CL_MEM_READ_WRITE);
@@ -265,7 +278,7 @@ void ECCExecutorNew::runBuild(ECCData& data, int treesPerRun, int workitems, int
 	buildKernel->setLocalSize(workitems);
 
 	buildKernel->SetArg(1, seedsBuffer);
-	buildKernel->SetArg(2, dataBuffer, true);
+	buildKernel->SetArg(2, dataBuffer);
 	buildKernel->SetArg(3, labelOrderBuffer);
 	buildKernel->SetArg(4, instancesBuffer);
 	buildKernel->SetArg(5, instancesNextBuffer);
@@ -283,16 +296,16 @@ void ECCExecutorNew::runBuild(ECCData& data, int treesPerRun, int workitems, int
 	Util::StopWatch buildLoopTime;
 	buildLoopTime.start();
 
+	int* seeds = new int[treesPerRun];
 	for (int tree = 0; tree < numChains * numTrees * numLabels; tree += treesPerRun)
 	{
 		buildKernel->SetArg(0, gidMultiplier * treesPerRun);
 
 		for (int seed = 0; seed < treesPerRun; ++seed)
 		{
-			int rnd = Util::randomInt(INT_MAX);
-			static_cast<int*>(seedsBuffer.getData())[seed] = rnd;
+			seeds[seed] = Util::randomInt(INT_MAX);
 		}
-		seedsBuffer.write();
+		seedsBuffer.writeFrom(seeds, seedsBuffer.getSize());
 
 		instancesBuffer.writeFrom(indicesList.data() + gidMultiplier * treesPerRun * maxSplits, treesPerRun * maxSplits * sizeof(int));
 
@@ -300,18 +313,19 @@ void ECCExecutorNew::runBuild(ECCData& data, int treesPerRun, int workitems, int
 
 		tmpNodeIndexBuffer.readTo(nodeIndices + gidMultiplier*treesPerRun*nodesPerTree, treesPerRun*nodesPerTree * sizeof(int));
 		tmpNodeValueBuffer.readTo(nodeValues + gidMultiplier*treesPerRun*nodesPerTree, treesPerRun*nodesPerTree * sizeof(double));
+		
 		++gidMultiplier;
-
 		measurement["buildKernel"] += buildKernel->getRuntime();
 		measurement["buildSeedsWrite"] += seedsBuffer.getTransferTime();
 		measurement["buildInstancesWrite"] += instancesBuffer.getTransferTime();
 		measurement["buildNodeIndexRead"] += tmpNodeIndexBuffer.getTransferTime();
 		measurement["buildNodeValueRead"] += tmpNodeValueBuffer.getTransferTime();
 	}
-	measurement["buildDataWrite"] = dataBuffer.getTransferTime();
 	measurement["buildLoopTime"] = buildLoopTime.stop();
 	measurement["buildTotalTime"] = totalBuildTime.stop();
+	measurement["buildDataWrite"] = dataBuffer.getTransferTime();
 
+	delete[] seeds;
 	tmpNodeIndexBuffer.clear();
 	tmpNodeValueBuffer.clear();
 	dataBuffer.clear();
@@ -354,15 +368,18 @@ void ECCExecutorNew::prepareClassify(ECCData& data)
 
 	Buffer dataBuffer(data.getValueCount() * data.getSize() * sizeof(double), CL_MEM_READ_ONLY);
 
+	double* dataArray = new double[data.getValueCount() * data.getSize()];
 	int dataBuffIdx = 0;
 	for (MultilabelInstance inst : data.getInstances())
 	{
-		memcpy(((double*)dataBuffer.getData()) + dataBuffIdx, inst.getData().data(), inst.getValueCount() * sizeof(double));
+		memcpy(dataArray + dataBuffIdx, inst.getData().data(), inst.getValueCount() * sizeof(double));
 		dataBuffIdx += inst.getValueCount();
 	}
+	dataBuffer.writeFrom(dataArray, dataBuffer.getSize());
+	delete[] dataArray;
 
-	Buffer resultBuffer(data.getSize() * data.getLabelCount() * sizeof(OutputAtom), CL_MEM_WRITE_ONLY);
-	Buffer labelBuffer(data.getSize() * data.getLabelCount() * numChains * sizeof(OutputAtom), CL_MEM_WRITE_ONLY);
+	Buffer resultBuffer(data.getSize() * data.getLabelCount() * sizeof(double), CL_MEM_WRITE_ONLY);
+	Buffer labelBuffer(data.getSize() * data.getLabelCount() * numChains * sizeof(double), CL_MEM_WRITE_ONLY);
 
 	size_t stepModelSize = ecc->getTotalSize() / numLabels;
 	Buffer stepNodeValueBuffer(sizeof(double) * stepModelSize, CL_MEM_READ_ONLY);
@@ -415,13 +432,13 @@ double ECCExecutorNew::tuneClassifyStep(Configuration config, int oneStep)
 		int localBufferSize_SC = config["NUM_WI_INSTANCES_SC"] * config["NUM_WI_CHAINS_SC"] * config["NUM_WI_TREES_SC"];
 		int localBufferSize_SR = config["NUM_WI_INSTANCES_SR"] * config["NUM_WI_CHAINS_SR"] * config["NUM_WI_TREES_SR"];
 
-		stepIntermediateBuffer = Buffer(stepIntermediateBufferTotalSize * sizeof(OutputAtom), CL_MEM_READ_WRITE);
+		stepIntermediateBuffer = Buffer(stepIntermediateBufferTotalSize * sizeof(TreeVote), CL_MEM_READ_WRITE);
 
-		stepCalcKernel->SetArg(0, classifyData->stepNodeValueBuffer, true);
-		stepCalcKernel->SetArg(1, classifyData->stepNodeIndexBuffer, true);
-		stepCalcKernel->SetArg(2, classifyData->dataBuffer, true);
-		stepCalcKernel->SetArg(3, classifyData->labelBuffer, true);
-		stepCalcKernel->SetLocalArg(4, localBufferSize_SC * sizeof(OutputAtom));
+		stepCalcKernel->SetArg(0, classifyData->stepNodeValueBuffer);
+		stepCalcKernel->SetArg(1, classifyData->stepNodeIndexBuffer);
+		stepCalcKernel->SetArg(2, classifyData->dataBuffer);
+		stepCalcKernel->SetArg(3, classifyData->labelBuffer);
+		stepCalcKernel->SetLocalArg(4, localBufferSize_SC * sizeof(TreeVote));
 		stepCalcKernel->SetArg(5, stepIntermediateBuffer);
 
 		stepCalcKernel->setDim(3);
@@ -430,8 +447,8 @@ double ECCExecutorNew::tuneClassifyStep(Configuration config, int oneStep)
 
 		stepReduceKernel->SetArg(0, stepIntermediateBuffer);
 		stepReduceKernel->SetArg(1, classifyData->labelBuffer);
-		stepReduceKernel->SetArg(2, labelOrderBuffer, true);
-		stepReduceKernel->SetLocalArg(3, localBufferSize_SR * sizeof(OutputAtom));
+		stepReduceKernel->SetArg(2, labelOrderBuffer);
+		stepReduceKernel->SetLocalArg(3, localBufferSize_SR * sizeof(TreeVote));
 
 		stepReduceKernel->setDim(3);
 		stepReduceKernel->setGlobalSize(config["NUM_WG_INSTANCES_SR"] * config["NUM_WI_INSTANCES_SR"], config["NUM_WG_CHAINS_SR"] * config["NUM_WI_CHAINS_SR"], config["NUM_WI_TREES_SR"]);
@@ -508,10 +525,10 @@ double ECCExecutorNew::tuneClassifyFinal(Configuration config)
 		int localBufferSize_FC = config["NUM_WI_INSTANCES_FC"] * config["NUM_WI_LABELS_FC"] * config["NUM_WI_CHAINS_FC"];
 		int localBufferSize_FR = config["NUM_WI_INSTANCES_FR"] * config["NUM_WI_LABELS_FR"] * config["NUM_WI_CHAINS_FR"];
 
-		finalIntermediateBuffer = Buffer(finalIntermediateBufferTotalSize * sizeof(OutputAtom), CL_MEM_READ_WRITE);
+		finalIntermediateBuffer = Buffer(finalIntermediateBufferTotalSize * sizeof(double), CL_MEM_READ_WRITE);
 
 		finalCalcKernel->SetArg(0, classifyData->labelBuffer);
-		finalCalcKernel->SetLocalArg(1, localBufferSize_FC * sizeof(OutputAtom));
+		finalCalcKernel->SetLocalArg(1, localBufferSize_FC * sizeof(double));
 		finalCalcKernel->SetArg(2, finalIntermediateBuffer);
 
 		finalCalcKernel->setDim(3);
@@ -520,7 +537,7 @@ double ECCExecutorNew::tuneClassifyFinal(Configuration config)
 
 		finalReduceKernel->SetArg(0, finalIntermediateBuffer);
 		finalReduceKernel->SetArg(1, classifyData->resultBuffer);
-		finalReduceKernel->SetLocalArg(2, localBufferSize_FR * sizeof(OutputAtom));
+		finalReduceKernel->SetLocalArg(2, localBufferSize_FR * sizeof(double));
 
 		finalReduceKernel->setDim(3);
 		finalReduceKernel->setGlobalSize(config["NUM_WG_INSTANCES_FR"] * config["NUM_WI_INSTANCES_FR"], config["NUM_WG_LABELS_FR"] * config["NUM_WI_LABELS_FR"], config["NUM_WI_CHAINS_FR"]);
@@ -561,7 +578,7 @@ void ECCExecutorNew::finishClassify()
 	delete classifyData;
 }
 
-void ECCExecutorNew::runClassify(ECCData& data, std::vector<double>& values, std::vector<int>& votes, Configuration config)
+std::vector<MultilabelPrediction> ECCExecutorNew::runClassify(ECCData& data, Configuration config)
 {
 	std::cout << std::endl << "--- NEW CLASSIFICATION ---" << std::endl;
 	
@@ -572,15 +589,18 @@ void ECCExecutorNew::runClassify(ECCData& data, std::vector<double>& values, std
 	size_t stepModelSize = ecc->getTotalSize() / numLabels;
 	Buffer dataBuffer(data.getValueCount() * data.getSize() * sizeof(double), CL_MEM_READ_ONLY);
 
+	double* dataArray = new double[data.getValueCount() * data.getSize()];
 	int dataBuffIdx = 0;
 	for (MultilabelInstance inst : data.getInstances())
 	{
-		memcpy(((double*)dataBuffer.getData()) + dataBuffIdx, inst.getData().data(), inst.getValueCount() * sizeof(double));
+		memcpy(dataArray + dataBuffIdx, inst.getData().data(), inst.getValueCount() * sizeof(double));
 		dataBuffIdx += inst.getValueCount();
 	}
+	dataBuffer.writeFrom(dataArray, dataBuffer.getSize());
+	delete[] dataArray;
 
-	Buffer resultBuffer(data.getSize() * data.getLabelCount() * sizeof(OutputAtom), CL_MEM_WRITE_ONLY);
-	Buffer labelBuffer(data.getSize() * data.getLabelCount() * numChains * sizeof(OutputAtom), CL_MEM_WRITE_ONLY);
+	Buffer resultBuffer(data.getSize() * data.getLabelCount() * sizeof(double), CL_MEM_WRITE_ONLY);
+	Buffer labelBuffer(data.getSize() * data.getLabelCount() * numChains * sizeof(double), CL_MEM_WRITE_ONLY);
 
 	Buffer stepNodeValueBuffer(sizeof(double) * stepModelSize, CL_MEM_READ_ONLY);
 	Buffer stepNodeIndexBuffer(sizeof(int) * stepModelSize, CL_MEM_READ_ONLY);
@@ -607,6 +627,9 @@ void ECCExecutorNew::runClassify(ECCData& data, std::vector<double>& values, std
 		strstr << " -D " << it->first << "=" << it->second;
 	optionString = strstr.str();
 
+	Util::StopWatch classifyCompileTime;
+	classifyCompileTime.start();
+
 	cl_program prog;
 	PlatformUtil::buildProgramFromSource(stepCalcSource, prog, optionString.c_str());
 	Kernel* stepCalcKernel = new Kernel(prog, "stepCalc");
@@ -616,19 +639,29 @@ void ECCExecutorNew::runClassify(ECCData& data, std::vector<double>& values, std
 	Kernel* stepReduceKernel = new Kernel(prog, "stepReduce");
 	clReleaseProgram(prog);
 
+	PlatformUtil::buildProgramFromSource(finalCalcSource, prog, optionString.c_str());
+	Kernel* finalCalcKernel = new Kernel(prog, "finalCalc");
+	clReleaseProgram(prog);
+
+	PlatformUtil::buildProgramFromSource(finalReduceSource, prog, optionString.c_str());
+	Kernel* finalReduceKernel = new Kernel(prog, "finalReduce");
+	clReleaseProgram(prog);
+
+	measurement["classifyCompileTime"] = classifyCompileTime.stop();
+
 	int stepIntermediateBufferSize[3] = { numInstances, numChains, config["NUM_WG_TREES_SC"] };
 	int stepIntermediateBufferTotalSize = stepIntermediateBufferSize[0] * stepIntermediateBufferSize[1] * stepIntermediateBufferSize[2];
 
 	int localBufferSize_SC = config["NUM_WI_INSTANCES_SC"] * config["NUM_WI_CHAINS_SC"] * config["NUM_WI_TREES_SC"];
 	int localBufferSize_SR = config["NUM_WI_INSTANCES_SR"] * config["NUM_WI_CHAINS_SR"] * config["NUM_WI_TREES_SR"];
 
-	Buffer stepIntermediateBuffer(stepIntermediateBufferTotalSize * sizeof(OutputAtom), CL_MEM_READ_WRITE);
+	Buffer stepIntermediateBuffer(stepIntermediateBufferTotalSize * sizeof(TreeVote), CL_MEM_READ_WRITE);
 
 	stepCalcKernel->SetArg(0, stepNodeValueBuffer);
 	stepCalcKernel->SetArg(1, stepNodeIndexBuffer);
-	stepCalcKernel->SetArg(2, dataBuffer, true);
+	stepCalcKernel->SetArg(2, dataBuffer);
 	stepCalcKernel->SetArg(3, labelBuffer);
-	stepCalcKernel->SetLocalArg(4, localBufferSize_SC * sizeof(OutputAtom));
+	stepCalcKernel->SetLocalArg(4, localBufferSize_SC * sizeof(TreeVote));
 	stepCalcKernel->SetArg(5, stepIntermediateBuffer);
 
 	stepCalcKernel->setDim(3);
@@ -638,19 +671,11 @@ void ECCExecutorNew::runClassify(ECCData& data, std::vector<double>& values, std
 	stepReduceKernel->SetArg(0, stepIntermediateBuffer);
 	stepReduceKernel->SetArg(1, labelBuffer);
 	stepReduceKernel->SetArg(2, labelOrderBuffer);
-	stepReduceKernel->SetLocalArg(3, localBufferSize_SR * sizeof(OutputAtom));
+	stepReduceKernel->SetLocalArg(3, localBufferSize_SR * sizeof(TreeVote));
 
 	stepReduceKernel->setDim(3);
 	stepReduceKernel->setGlobalSize(config["NUM_WG_INSTANCES_SR"] * config["NUM_WI_INSTANCES_SR"], config["NUM_WG_CHAINS_SR"] * config["NUM_WI_CHAINS_SR"], config["NUM_WI_TREES_SR"]);
 	stepReduceKernel->setLocalSize(config["NUM_WI_INSTANCES_SR"], config["NUM_WI_CHAINS_SR"], config["NUM_WI_TREES_SR"]);
-
-	PlatformUtil::buildProgramFromSource(finalCalcSource, prog, optionString.c_str());
-	Kernel* finalCalcKernel = new Kernel(prog, "finalCalc");
-	clReleaseProgram(prog);
-
-	PlatformUtil::buildProgramFromSource(finalReduceSource, prog, optionString.c_str());
-	Kernel* finalReduceKernel = new Kernel(prog, "finalReduce");
-	clReleaseProgram(prog);
 
 	int finalIntermediateBufferSize[3] = { numInstances, numLabels, config["NUM_WG_CHAINS_FC"] };
 	int finalIntermediateBufferTotalSize = finalIntermediateBufferSize[0] * finalIntermediateBufferSize[1] * finalIntermediateBufferSize[2];
@@ -658,10 +683,10 @@ void ECCExecutorNew::runClassify(ECCData& data, std::vector<double>& values, std
 	int localBufferSize_FC = config["NUM_WI_INSTANCES_FC"] * config["NUM_WI_LABELS_FC"] * config["NUM_WI_CHAINS_FC"];
 	int localBufferSize_FR = config["NUM_WI_INSTANCES_FR"] * config["NUM_WI_LABELS_FR"] * config["NUM_WI_CHAINS_FR"];
 
-	Buffer finalIntermediateBuffer(finalIntermediateBufferTotalSize * sizeof(OutputAtom), CL_MEM_READ_WRITE);
+	Buffer finalIntermediateBuffer(finalIntermediateBufferTotalSize * sizeof(double), CL_MEM_READ_WRITE);
 
 	finalCalcKernel->SetArg(0, labelBuffer);
-	finalCalcKernel->SetLocalArg(1, localBufferSize_FC * sizeof(OutputAtom));
+	finalCalcKernel->SetLocalArg(1, localBufferSize_FC * sizeof(double));
 	finalCalcKernel->SetArg(2, finalIntermediateBuffer);
 
 	finalCalcKernel->setDim(3);
@@ -670,7 +695,7 @@ void ECCExecutorNew::runClassify(ECCData& data, std::vector<double>& values, std
 
 	finalReduceKernel->SetArg(0, finalIntermediateBuffer);
 	finalReduceKernel->SetArg(1, resultBuffer);
-	finalReduceKernel->SetLocalArg(2, localBufferSize_FR * sizeof(OutputAtom));
+	finalReduceKernel->SetLocalArg(2, localBufferSize_FR * sizeof(double));
 
 	finalReduceKernel->setDim(3);
 	finalReduceKernel->setGlobalSize(config["NUM_WG_INSTANCES_FR"] * config["NUM_WI_INSTANCES_FR"], config["NUM_WG_LABELS_FR"] * config["NUM_WI_LABELS_FR"], config["NUM_WI_CHAINS_FR"]);
@@ -699,11 +724,22 @@ void ECCExecutorNew::runClassify(ECCData& data, std::vector<double>& values, std
 	finalCalcKernel->execute();
 	finalReduceKernel->execute();
 
-	measurement["classifyFinalCalcKernel"] += finalCalcKernel->getRuntime();
-	measurement["classifyFinalReduceKernel"] += finalReduceKernel->getRuntime();
+	double* results = new double[numInstances * numLabels];
+	resultBuffer.readTo(results, resultBuffer.getSize());
+	std::vector<MultilabelPrediction> predictions;
+
+	for (int d = 0; d < numInstances; ++d)
+	{
+		predictions.push_back(MultilabelPrediction(results + d * numLabels, results + (d + 1) * numLabels));
+	}
+	delete[] results;
+
+	measurement["classifyFinalCalcKernel"] = finalCalcKernel->getRuntime();
+	measurement["classifyFinalReduceKernel"] = finalReduceKernel->getRuntime();
 	measurement["classifyDataWrite"] = dataBuffer.getTransferTime();
 	measurement["classifyLoopTime"] = classifyLoopTime.stop();
 	measurement["classifyTotalTime"] = totalClassifyTime.stop();
+	measurement["classifyValuesRead"] = resultBuffer.getTransferTime();
 
 	stepIntermediateBuffer.clear();
 	finalIntermediateBuffer.clear();
@@ -718,6 +754,8 @@ void ECCExecutorNew::runClassify(ECCData& data, std::vector<double>& values, std
 	labelBuffer.clear();
 	stepNodeValueBuffer.clear();
 	stepNodeIndexBuffer.clear();
+
+	return predictions;
 }
 
 Measurement ECCExecutorNew::getMeasurement()

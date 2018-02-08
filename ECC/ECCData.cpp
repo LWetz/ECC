@@ -47,6 +47,11 @@ std::vector<double>& MultilabelInstance::getData()
 	return data;
 }
 
+bool MultilabelInstance::getLabel(int labelIndex)
+{
+	return data[numAttribs + labelIndex] > 0.0;
+}
+
 int MultilabelInstance::getNumLabels()
 {
 	return numLabels;
@@ -60,6 +65,29 @@ int MultilabelInstance::getNumAttribs()
 int MultilabelInstance::getValueCount()
 {
 	return numLabels + numAttribs;
+}
+
+MultilabelPrediction::MultilabelPrediction(double* begin, double* end)
+{
+	for (double* v = begin; v != end; ++v)
+	{
+		confidence.push_back(*v);
+	}
+}
+
+int MultilabelPrediction::getNumLabels()
+{
+	return confidence.size();
+}
+
+double MultilabelPrediction::getConfidence(int labelIndex)
+{
+	return confidence[labelIndex];
+}
+
+bool MultilabelPrediction::getPrediction(int labelIndex, double threshold)
+{
+	return getConfidence(labelIndex) > threshold;
 }
 
 ECCData::ECCData(int labelCount, std::string arrfFile) : numLabels(labelCount)

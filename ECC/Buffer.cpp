@@ -2,16 +2,16 @@
 
 #include "Buffer.hpp"
 
-Buffer::Buffer() : data(NULL), size(0), memObj(NULL), flags(0)
+Buffer::Buffer() : size(0), memObj(NULL), flags(0)
 {
 }
 
-Buffer::Buffer(size_t _size) : data(new uint8_t[_size]), size(_size), memObj(NULL), flags(0)
+Buffer::Buffer(size_t _size) : size(_size), memObj(NULL), flags(0)
 {
 }
 
 Buffer::Buffer(size_t _size, cl_mem_flags _flags)
-	: data(new uint8_t[_size]), size(_size), memObj(NULL), flags(0)
+	: size(_size), memObj(NULL), flags(0)
 {
 	buildMemObj(_flags);
 }
@@ -22,19 +22,9 @@ void Buffer::buildMemObj(cl_mem_flags flags)
 	memObj = PlatformUtil::createBuffer(flags, size);
 }
 
-void Buffer::write()
-{
-	PlatformUtil::checkError(clEnqueueWriteBuffer(PlatformUtil::getCommandQueue(), memObj, CL_TRUE, 0, size, data, 0, NULL, &ev));
-}
-
 void Buffer::writeFrom(void* buffer, size_t buffSize)
 {
 	PlatformUtil::checkError(clEnqueueWriteBuffer(PlatformUtil::getCommandQueue(), memObj, CL_TRUE, 0, buffSize, buffer, 0, NULL, &ev));
-}
-
-void Buffer::read()
-{
-	PlatformUtil::checkError(clEnqueueReadBuffer(PlatformUtil::getCommandQueue(), memObj, CL_TRUE, 0, size, data, 0, NULL, &ev));
 }
 
 void Buffer::readTo(void* buffer, size_t buffSize)
@@ -47,11 +37,6 @@ cl_mem_flags Buffer::getFlags() const
 	return flags;
 }
 
-void* Buffer::getData() const
-{
-	return (void*)data;
-}
-
 size_t Buffer::getSize() const
 {
 	return size;
@@ -62,9 +47,14 @@ cl_mem Buffer::getMem() const
 	return memObj;
 }
 
+void Buffer::zero()
+{
+	int pattern = 0;
+	PlatformUtil::checkError(clEnqueueFillBuffer(PlatformUtil::getCommandQueue(), memObj, &pattern, sizeof(pattern), 0, size, 0, NULL, &ev));
+}
+
 void Buffer::clear()
 {
-	delete[] data;
 	if (memObj != NULL)
 	{
 		PlatformUtil::checkError(clReleaseMemObject(memObj));
@@ -82,8 +72,12 @@ size_t Buffer::getTransferTime()
 	return time_end - time_start;
 }
 
-ConstantBuffer::ConstantBuffer(int constant) : Buffer(sizeof(constant), CL_MEM_READ_ONLY)
+ConstantBuffer::ConstantBuffer(int value) : Buffer(sizeof(int), CL_MEM_READ_ONLY)
 {
-	memcpy(getData(), &constant, sizeof(constant));
+	write(value);
 }
 
+void ConstantBuffer::write(int value)
+{
+	writeFrom(&value, sizeof(int));
+}

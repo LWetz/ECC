@@ -6,7 +6,6 @@
 class Buffer
 {
 private:
-	uint8_t* data;
 	size_t size;
 	cl_mem memObj;
 	cl_mem_flags flags;
@@ -19,17 +18,16 @@ public:
 
 	void buildMemObj(cl_mem_flags flags);
 
-	void write();
 	void writeFrom(void* buffer, size_t buffSize);
-	void read();
 	void readTo(void* buffer, size_t buffSize);
 
 	cl_mem_flags getFlags() const;
-	void* getData() const;
 	size_t getSize() const;
 	cl_mem getMem() const;
 
 	size_t getTransferTime();
+
+	void zero();
 
 	void clear();
 };
@@ -37,5 +35,6 @@ public:
 class ConstantBuffer : public Buffer
 {
 public:
-	ConstantBuffer(int constant);
+	ConstantBuffer(int value);
+	void write(int value);
 };

@@ -3,7 +3,7 @@
 std::vector<int> ECCExecutorOld::partitionInstances(ECCData& data, EnsembleOfClassifierChains& ecc)
 {
 	std::vector<int> indicesList;
-	if (partitionInstance)
+	if (ecc.getEnsembleSubSetSize() != data.getSize() || ecc.getForestSubSetSize() != data.getSize())
 	{
 		indicesList = ecc.partitionInstanceIndices(data.getSize());
 	}
@@ -26,75 +26,87 @@ std::vector<int> ECCExecutorOld::partitionInstances(ECCData& data, EnsembleOfCla
 	return indicesList;
 }
 
-ECCExecutorOld::ECCExecutorOld(int _maxLevel, int _maxAttributes, int _forestSize)
-	: nodeValues(NULL), nodeIndices(NULL), labelOrderBuffer(NULL), partitionInstance(true),
-	maxLevel(_maxLevel), forestSize(_forestSize), maxAttributes(_maxAttributes), oldKernelMode(false)
+ECCExecutorOld::ECCExecutorOld(int _maxLevel, int _maxAttributes, int _numAttributes, int _numTrees, int _numLabels, int _numChains, int _ensembleSubSetSize, int _forestSubSetSize)
+	: nodeValues(NULL), nodeIndices(NULL), labelOrderBuffer(NULL), maxLevel(_maxLevel),
+	numTrees(_numTrees), maxAttributes(_maxAttributes), numLabels(_numLabels),
+	numChains(_numChains), numAttributes(_numAttributes),
+	buildSource(Util::loadFileToString("eccBuild.cl")),
+	classifySource(Util::loadFileToString("eccClassify.cl")),
+	classifyFixSource(Util::loadFileToString("eccClassify_fix.cl"))
 {
 	Util::RANDOM.setSeed(133713);
-}
-
-void ECCExecutorOld::runBuild(ECCData& data, int treeLimit, int ensembleSize, int ensembleSubSetSize, int forestSubSetSize)
-{
-	this->chainSize = data.getLabelCount();
-	this->ensembleSize = ensembleSize;
-
-	int totalTrees = ensembleSize * chainSize * forestSize;
-	while (treeLimit % chainSize != 0 || totalTrees % treeLimit != 0)
-		--treeLimit;
-
-	int chunkSize = treeLimit / chainSize;
-
-	delete[] nodeValues;
-	delete[] nodeIndices;
-	labelOrderBuffer.clear();
-
-	std::cout << std::endl << "--- BUILD ---" << std::endl;
-	cl_program prog;
-	PlatformUtil::buildProgramFromFile("eccBuild.cl", prog);//("\\\\X-THINK\\Users\\Public\\eccBuild.cl", prog);
-	Kernel* buildKernel = new Kernel(prog, "eccBuild");
-	clReleaseProgram(prog);
-
-	if (data.getSize() == ensembleSubSetSize && data.getSize() == forestSubSetSize)
-		partitionInstance = false;
-	else
-		partitionInstance = true;
-
-	ecc = new EnsembleOfClassifierChains(data.getValueCount(), data.getLabelCount(), maxLevel, forestSize, ensembleSize, ensembleSubSetSize, forestSubSetSize);
-	int globalSize = ecc->getChainSize() * chunkSize;
-	int nodesLastLevel = pow(2.0f, maxLevel);
-	int nodesPerTree = pow(2.0f, maxLevel + 1) - 1;
+	Util::StopWatch stopWatch;
+	stopWatch.start();
+	ecc = new EnsembleOfClassifierChains(_numAttributes + numLabels, numLabels, maxLevel, numTrees, numChains, _ensembleSubSetSize, _forestSubSetSize);
 
 	labelOrderBuffer = Buffer(sizeof(int) * ecc->getEnsembleSize() * ecc->getChainSize(), CL_MEM_READ_ONLY);
+	int* labelOrders = new int[ecc->getEnsembleSize() * ecc->getChainSize()];
 
 	int i = 0;
 	for (int chain = 0; chain < ecc->getEnsembleSize(); ++chain)
 	{
 		for (int forest = 0; forest < ecc->getChainSize(); ++forest)
 		{
-			static_cast<int*>(labelOrderBuffer.getData())[i++] = ecc->getChains()[chain].getLabelOrder()[forest];
+			labelOrders[i++] = ecc->getChains()[chain].getLabelOrder()[forest];
 		}
 	}
+	labelOrderBuffer.writeFrom(labelOrders, labelOrderBuffer.getSize());
+	delete[] labelOrders;
 
 	nodeValues = new double[ecc->getTotalSize()];
 	nodeIndices = new int[ecc->getTotalSize()];
+
+	measurement["oldSetupTotalTime"] = stopWatch.stop();
+	measurement["oldSetupLabelOrdersWrite"] = labelOrderBuffer.getTransferTime();
+}
+
+void ECCExecutorOld::runBuild(ECCData& data, int treeLimit)
+{
+	std::cout << std::endl << "--- BUILD ---" << std::endl;
+
+	Util::StopWatch totalBuildTime;
+	totalBuildTime.start();
+
+	int totalTrees = numChains * numLabels * numTrees;
+	while (treeLimit % numLabels != 0 || totalTrees % treeLimit != 0)
+		--treeLimit;
+
+	int globalSize = treeLimit;
+	int chunkSize = globalSize / numLabels;
+
+	int nodesLastLevel = pow(2.0f, maxLevel);
+	int nodesPerTree = pow(2.0f, maxLevel + 1) - 1;
+
+	int maxSplits = ecc->getForestSubSetSize() - 1;
+
+	Util::StopWatch buildCompileTime;
+	buildCompileTime.start();
+
+	cl_program prog;
+	PlatformUtil::buildProgramFromFile("eccBuild.cl", prog);
+	Kernel* buildKernel = new Kernel(prog, "eccBuild");
+	clReleaseProgram(prog);
+
+	measurement["oldBuildCompileTime"] = buildCompileTime.stop();
+
 	Buffer tmpNodeValueBuffer(sizeof(double) * globalSize * nodesPerTree, CL_MEM_READ_WRITE);
 	Buffer tmpNodeIndexBuffer(sizeof(int) * globalSize * nodesPerTree, CL_MEM_READ_WRITE);
 
-	int dataSize = data.getSize();
 	Buffer dataBuffer(data.getValueCount() * data.getSize() * sizeof(double), CL_MEM_READ_ONLY);
 
+	double* dataArray = new double[data.getValueCount() * data.getSize()];
 	int dataBuffIdx = 0;
 	for (MultilabelInstance inst : data.getInstances())
 	{
-		memcpy(static_cast<double*>(dataBuffer.getData()) + dataBuffIdx, inst.getData().data(), inst.getValueCount() * sizeof(double));
+		memcpy(dataArray + dataBuffIdx, inst.getData().data(), inst.getValueCount() * sizeof(double));
 		dataBuffIdx += inst.getValueCount();
 	}
+	dataBuffer.writeFrom(dataArray, dataBuffer.getSize());
+	delete[] dataArray;
 
-	int subSetSize = ecc->getForestSubSetSize();
 	int numValues = data.getValueCount();
 	int numAttributes = data.getAttribCount();
 
-	int maxSplits = ecc->getForestSubSetSize() - 1;
 	Buffer instancesBuffer(sizeof(int) * maxSplits*globalSize, CL_MEM_READ_WRITE);
 
 	std::vector<int> indicesList(partitionInstances(data, *ecc));
@@ -106,15 +118,15 @@ void ECCExecutorOld::runBuild(ECCData& data, int treeLimit, int ensembleSize, in
 	Buffer voteBuffer(sizeof(int) * nodesLastLevel*globalSize, CL_MEM_READ_WRITE);
 
 	ConstantBuffer pGidMultiplier(0);
-	ConstantBuffer pDataSize(dataSize);
-	ConstantBuffer pSubSetSize(subSetSize);
+	ConstantBuffer pDataSize(data.getSize());
+	ConstantBuffer pSubSetSize(ecc->getForestSubSetSize());
 	ConstantBuffer pNumValues(numValues);
 	ConstantBuffer pNumAttributes(numAttributes);
 	ConstantBuffer pMaxAttributes(maxAttributes);
 	ConstantBuffer pMaxLevel(maxLevel);
-	ConstantBuffer pChainSize(chainSize);
+	ConstantBuffer pChainSize(numLabels);
 	ConstantBuffer pMaxSplits(maxSplits);
-	ConstantBuffer pForestSize(forestSize);
+	ConstantBuffer pForestSize(numTrees);
 
 	int gidMultiplier = 0;
 
@@ -122,60 +134,69 @@ void ECCExecutorOld::runBuild(ECCData& data, int treeLimit, int ensembleSize, in
 	buildKernel->setGlobalSize(globalSize);
 	buildKernel->setLocalSize(3);
 
-	double totalTime = .0;
-
 	buildKernel->SetArg(0, pGidMultiplier);
-	buildKernel->SetArg(1, seedsBuffer, true);
-	buildKernel->SetArg(2, dataBuffer, true);
-	buildKernel->SetArg(3, pDataSize, true);
-	buildKernel->SetArg(4, pSubSetSize, true);
-	buildKernel->SetArg(5, labelOrderBuffer, true);
-	buildKernel->SetArg(6, pNumValues, true);
-	buildKernel->SetArg(7, pNumAttributes, true);
-	buildKernel->SetArg(8, pMaxAttributes, true);
-	buildKernel->SetArg(9, pMaxLevel, true);
-	buildKernel->SetArg(10, pChainSize, true);
-	buildKernel->SetArg(11, pMaxSplits, true);
-	buildKernel->SetArg(12, pForestSize, true);
+	buildKernel->SetArg(1, seedsBuffer);
+	buildKernel->SetArg(2, dataBuffer);
+	buildKernel->SetArg(3, pDataSize);
+	buildKernel->SetArg(4, pSubSetSize);
+	buildKernel->SetArg(5, labelOrderBuffer);
+	buildKernel->SetArg(6, pNumValues);
+	buildKernel->SetArg(7, pNumAttributes);
+	buildKernel->SetArg(8, pMaxAttributes);
+	buildKernel->SetArg(9, pMaxLevel);
+	buildKernel->SetArg(10, pChainSize);
+	buildKernel->SetArg(11, pMaxSplits);
+	buildKernel->SetArg(12, pForestSize);
 	buildKernel->SetArg(13, instancesBuffer);
 	buildKernel->SetArg(14, instancesNextBuffer);
 	buildKernel->SetArg(15, instancesLengthBuffer);
 	buildKernel->SetArg(16, instancesNextLengthBuffer);
 	buildKernel->SetArg(17, tmpNodeValueBuffer);
 	buildKernel->SetArg(18, tmpNodeIndexBuffer);
-	buildKernel->SetArg(19, voteBuffer, true);
+	buildKernel->SetArg(19, voteBuffer);
 
-	Util::StopWatch stopWatch;
-	stopWatch.start();
-	for (int chunk = 0; chunk < ensembleSize * forestSize; chunk += chunkSize)
+	int* seeds = new int[globalSize];
+
+	measurement["oldBuildValuesZero"] = 0;
+	measurement["oldBuildKernel"] = 0;
+	measurement["oldBuildSeedsWrite"] = 0;
+	measurement["oldBuildInstancesWrite"] = 0;
+	measurement["oldBuildNodeIndexRead"] = 0;
+	measurement["oldBuildNodeValueRead"] = 0;
+
+	Util::StopWatch buildLoopTime;
+	buildLoopTime.start();
+	for (int chunk = 0; chunk < numChains * numTrees; chunk += chunkSize)
 	{
-		pGidMultiplier.writeFrom(&gidMultiplier, sizeof(int));
+		pGidMultiplier.write(gidMultiplier);
 
+		tmpNodeValueBuffer.zero();
 		for (int seed = 0; seed < globalSize; ++seed)
 		{
-			int rnd = Util::randomInt(INT_MAX);
-			static_cast<int*>(seedsBuffer.getData())[seed] = rnd;
+			seeds[seed] = Util::randomInt(INT_MAX);
 		}
-		seedsBuffer.write();
+		seedsBuffer.writeFrom(seeds, seedsBuffer.getSize());
 
-		memcpy(instancesBuffer.getData(), indicesList.data() + gidMultiplier * globalSize * maxSplits, globalSize * maxSplits * sizeof(int));
-		instancesBuffer.write();
+		instancesBuffer.writeFrom(indicesList.data() + gidMultiplier * globalSize * maxSplits, globalSize * maxSplits * sizeof(int));
 
 		buildKernel->execute();
-		totalTime += buildKernel->getRuntime();
 
-		tmpNodeIndexBuffer.read();
-		tmpNodeValueBuffer.read();
-
-		memcpy(((uint8_t*)nodeIndices) + gidMultiplier*tmpNodeIndexBuffer.getSize(), tmpNodeIndexBuffer.getData(), tmpNodeIndexBuffer.getSize());
-		memcpy(((uint8_t*)nodeValues) + gidMultiplier*tmpNodeValueBuffer.getSize(), tmpNodeValueBuffer.getData(), tmpNodeValueBuffer.getSize());
+		tmpNodeIndexBuffer.readTo(nodeIndices + gidMultiplier*globalSize*nodesPerTree, globalSize*nodesPerTree * sizeof(int));
+		tmpNodeValueBuffer.readTo(nodeValues + gidMultiplier*globalSize*nodesPerTree, globalSize*nodesPerTree * sizeof(double));
 
 		++gidMultiplier;
+		measurement["oldBuildValuesZero"] += tmpNodeValueBuffer.getTransferTime();
+		measurement["oldBuildKernel"] += buildKernel->getRuntime();
+		measurement["oldBuildSeedsWrite"] += seedsBuffer.getTransferTime();
+		measurement["oldBuildInstancesWrite"] += instancesBuffer.getTransferTime();
+		measurement["oldBuildNodeIndexRead"] += tmpNodeIndexBuffer.getTransferTime();
+		measurement["oldBuildNodeValueRead"] += tmpNodeValueBuffer.getTransferTime();
 	}
+	measurement["oldBuildDataWrite"] = dataBuffer.getTransferTime();
+	measurement["oldBuildLoopTime"] = buildLoopTime.stop();
+	measurement["oldBuildTotalTime"] = totalBuildTime.stop();
 
-	std::cout << "Build took " << ((double)stopWatch.stop())*1e-06 << " ms total." << std::endl;
-	std::cout << "Build took " << ((double)totalTime)*1e-06 << " ms kernel time." << std::endl;
-
+	delete[] seeds;
 	tmpNodeIndexBuffer.clear();
 	tmpNodeValueBuffer.clear();
 	dataBuffer.clear();
@@ -187,54 +208,64 @@ void ECCExecutorOld::runBuild(ECCData& data, int treeLimit, int ensembleSize, in
 	voteBuffer.clear();
 
 	delete buildKernel;
-	PlatformUtil::finish();
 }
 
-void ECCExecutorOld::runClassify(ECCData& data, std::vector<double>& values, std::vector<int>& votes, bool fix)
+std::vector<MultilabelPrediction> ECCExecutorOld::runClassify(ECCData& data, bool fix)
 {
 	std::cout << std::endl << "--- " << (fix ? "FIXED" : "OLD") << " CLASSIFICATION ---" << std::endl;
+
+	Util::StopWatch totalClassifyTime, classifyCompileTime;
+	totalClassifyTime.start();
+	classifyCompileTime.start();
+
 	cl_program prog;
 	PlatformUtil::buildProgramFromFile(fix ? "eccClassify_fix.cl" : "eccClassify.cl", prog);
 	Kernel* classifyKernel = new Kernel(prog, "eccClassify");
 	clReleaseProgram(prog);
 
+	measurement["oldClassifyCompileTime"] = classifyCompileTime.stop();
+
 	int dataSize = data.getSize();
 	Buffer dataBuffer(data.getValueCount() * data.getSize() * sizeof(double), CL_MEM_READ_WRITE);
 
+	double* dataArray = new double[data.getValueCount() * dataSize];
 	int dataBuffIdx = 0;
 	for (MultilabelInstance inst : data.getInstances())
 	{
-		memcpy(static_cast<double*>(dataBuffer.getData()) + dataBuffIdx, inst.getData().data(), inst.getValueCount() * sizeof(double));
+		memcpy(dataArray + dataBuffIdx, inst.getData().data(), inst.getValueCount() * sizeof(double));
 		dataBuffIdx += inst.getValueCount();
 	}
+	dataBuffer.writeFrom(dataArray, dataBuffer.getSize());
+	delete[] dataArray;
 
 	Buffer resultBuffer(dataSize * data.getLabelCount() * sizeof(double), CL_MEM_READ_WRITE);
+	resultBuffer.zero();
 	Buffer voteBuffer(dataSize * data.getLabelCount() * sizeof(int), CL_MEM_WRITE_ONLY);
 
 	Buffer nodeValueBuffer(ecc->getTotalSize() * sizeof(double), CL_MEM_READ_ONLY);
 	Buffer nodeIndexBuffer(ecc->getTotalSize() * sizeof(int), CL_MEM_READ_ONLY);
-	memcpy(nodeValueBuffer.getData(), nodeValues, nodeValueBuffer.getSize());
-	memcpy(nodeIndexBuffer.getData(), nodeIndices, nodeIndexBuffer.getSize());
+	nodeValueBuffer.writeFrom(nodeValues, nodeValueBuffer.getSize());
+	nodeIndexBuffer.writeFrom(nodeIndices, nodeIndexBuffer.getSize());
 
 	int numValues = data.getValueCount();
 
 	ConstantBuffer maxLevelBuffer(maxLevel);
-	ConstantBuffer forestSizeBuffer(forestSize);
-	ConstantBuffer chainSizeBuffer(chainSize);
-	ConstantBuffer ensembleSizeBuffer(ensembleSize);
+	ConstantBuffer forestSizeBuffer(numTrees);
+	ConstantBuffer chainSizeBuffer(numLabels);
+	ConstantBuffer ensembleSizeBuffer(numChains);
 	ConstantBuffer numValuesBuffer(numValues);
 
-	classifyKernel->SetArg(0, nodeValueBuffer, true);
-	classifyKernel->SetArg(1, nodeIndexBuffer, true);
-	classifyKernel->SetArg(2, labelOrderBuffer, true);
-	classifyKernel->SetArg(3, maxLevelBuffer, true);
-	classifyKernel->SetArg(4, forestSizeBuffer, true);
-	classifyKernel->SetArg(5, chainSizeBuffer, true);
-	classifyKernel->SetArg(6, ensembleSizeBuffer, true);
-	classifyKernel->SetArg(7, dataBuffer, true);
-	classifyKernel->SetArg(8, numValuesBuffer, true);
-	classifyKernel->SetArg(9, resultBuffer, true);
-	classifyKernel->SetArg(10, voteBuffer, true);
+	classifyKernel->SetArg(0, nodeValueBuffer);
+	classifyKernel->SetArg(1, nodeIndexBuffer);
+	classifyKernel->SetArg(2, labelOrderBuffer);
+	classifyKernel->SetArg(3, maxLevelBuffer);
+	classifyKernel->SetArg(4, forestSizeBuffer);
+	classifyKernel->SetArg(5, chainSizeBuffer);
+	classifyKernel->SetArg(6, ensembleSizeBuffer);
+	classifyKernel->SetArg(7, dataBuffer);
+	classifyKernel->SetArg(8, numValuesBuffer);
+	classifyKernel->SetArg(9, resultBuffer);
+	classifyKernel->SetArg(10, voteBuffer);
 
 	classifyKernel->setDim(1);
 	classifyKernel->setGlobalSize(data.getSize());
@@ -242,16 +273,32 @@ void ECCExecutorOld::runClassify(ECCData& data, std::vector<double>& values, std
 
 	classifyKernel->execute();
 
-	resultBuffer.read();
-	voteBuffer.read();
+	measurement["oldClassifyResultZero"] = resultBuffer.getTransferTime();
 
-	for (int n = 0; n < data.getLabelCount()*data.getSize(); ++n)
+	double* results = new double[dataSize * numLabels];
+	int* votes = new int[dataSize * numLabels];
+	resultBuffer.readTo(results, resultBuffer.getSize());
+	voteBuffer.readTo(votes, voteBuffer.getSize());
+	std::vector<MultilabelPrediction> predictions;
+
+	for (int d = 0; d < dataSize; ++d)
 	{
-		values.push_back(static_cast<double*>(resultBuffer.getData())[n]);
-		votes.push_back(static_cast<int*>(voteBuffer.getData())[n]);
+		for (int l = 0; l < numLabels; ++l)
+		{
+			results[d * numLabels + l] = (1.0 + results[d * numLabels + l] / votes[d * numLabels + l]) / 2.0;
+		}
+		predictions.push_back(MultilabelPrediction(results + d * numLabels, results + (d + 1) * numLabels));
 	}
+	delete[] results;
+	delete[] votes;
 
-	voteBuffer.read();
+	measurement["oldClassifyNodeIndexWrite"] += nodeIndexBuffer.getTransferTime();
+	measurement["oldClassifyNodeValueWrite"] += nodeValueBuffer.getTransferTime();
+	measurement["oldClassifyKernel"] = classifyKernel->getRuntime();
+	measurement["oldClassifyDataWrite"] = dataBuffer.getTransferTime();
+	measurement["oldClassifyTotalTime"] = totalClassifyTime.stop();
+	measurement["oldClassifyVotesRead"] = voteBuffer.getTransferTime();
+	measurement["oldClassifyResultRead"] = resultBuffer.getTransferTime();
 
 	dataBuffer.clear();
 	resultBuffer.clear();
@@ -266,11 +313,18 @@ void ECCExecutorOld::runClassify(ECCData& data, std::vector<double>& values, std
 	nodeIndexBuffer.clear();
 
 	delete classifyKernel;
+
+	return predictions;
 }
 
 Measurement ECCExecutorOld::getMeasurement()
 {
 	return measurement;
+}
+
+void getResults(std::vector<double> values, std::vector<int> votes)
+{
+
 }
 
 ECCExecutorOld::~ECCExecutorOld()

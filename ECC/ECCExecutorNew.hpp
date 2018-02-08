@@ -74,11 +74,11 @@ public:
 	void runBuild(ECCData& data, int treesPerRun, int workitems, int workgroups);
 
 private:
-	typedef struct OutputAtom
+	typedef struct TreeVote
 	{
 		double result;
 		int vote;
-	}OutputAtom;
+	}TreeVote;
 
 public:
 	void prepareClassify(ECCData& data);
@@ -86,7 +86,7 @@ public:
 	double tuneClassifyFinal(Configuration config);
 	void finishClassify();
 
-	void runClassify(ECCData& data, std::vector<double>& values, std::vector<int>& votes, Configuration config);
+	std::vector<MultilabelPrediction> runClassify(ECCData& data, Configuration config);
 
 	Measurement getMeasurement();
 

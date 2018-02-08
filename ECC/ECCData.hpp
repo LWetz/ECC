@@ -14,9 +14,23 @@ public:
 	MultilabelInstance(const ArffInstance* inst, int _numLabels);
 
 	std::vector<double>& getData();
+	bool getLabel(int labelIndex);
 	int getNumLabels();
 	int getNumAttribs();
 	int getValueCount();
+};
+
+class MultilabelPrediction
+{
+private: 
+	std::vector<double> confidence;
+
+public:
+	MultilabelPrediction(double* begin, double* end);
+
+	int getNumLabels();
+	double getConfidence(int labelIndex);
+	bool getPrediction(int labelIndex, double threshold);
 };
 
 class ECCData
