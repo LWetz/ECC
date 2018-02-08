@@ -27,14 +27,14 @@ public:
 	template<typename ...DimSizes>
 	void setGlobalSize(DimSizes... gs)
 	{
-		int arr[] = { gs... };
+		int arr[] = { static_cast<size_t>(gs...) };
 		setGlobalSize(std::vector<size_t>(arr, arr + sizeof...(gs)));
 	}
 
 	template<typename ...DimSizes>
 	void setLocalSize(DimSizes... ls)
 	{
-		int arr[] = { ls... };
+		int arr[] = { static_cast<size_t>(ls...) };
 		setLocalSize(std::vector<size_t>(arr, arr + sizeof...(ls)));
 	}
 
