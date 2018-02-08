@@ -49,8 +49,8 @@ double PredictionPerformance::accuracy(std::vector<MultilabelInstance> trueSet, 
 		auto trueVec = trueSet[i];
 		auto predictedVec = predictedSet[i];
 
-		double or = 0;
-		double and = 0;
+		double orSize = 0;
+		double andSize = 0;
 
 		for (int l = 0; l <numLabels; ++l)
 		{
@@ -58,13 +58,13 @@ double PredictionPerformance::accuracy(std::vector<MultilabelInstance> trueSet, 
 			bool predictedVal = predictedSet[i].getPrediction(l, threshold);
 
 			if (trueVal || predictedVal)
-				or ++;
+				orSize++;
 
 			if (trueVal && predictedVal)
-				and ++;
+				andSize++;
 		}
 
-		accuracy += or > 0.0 ? and / or : 1.0;
+		accuracy += orSize > 0.0 ? andSize / orSize : 1.0;
 	}
 
 	return accuracy / numInstances;
