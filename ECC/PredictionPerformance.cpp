@@ -124,7 +124,7 @@ double PredictionPerformance::logloss(std::vector<MultilabelInstance> trueSet, s
 	return logloss / (numLabels * numInstances);
 }
 
-PredictionPerformance::PredictionPerformance(int _numLabels, int _numInstances, double _threshold) :
+PredictionPerformance::PredictionPerformance(size_t _numLabels, size_t _numInstances, double _threshold) :
 	numLabels(_numLabels), numInstances(_numInstances), threshold(_threshold)
 {
 

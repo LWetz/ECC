@@ -17,12 +17,12 @@ class ECCExecutorOld
 	double* nodeValues;
 	int* nodeIndices;
 	Buffer labelOrderBuffer;
-	int maxLevel;
-	int numTrees;
-	int numLabels;
-	int numChains;
-	int maxAttributes;
-	int numAttributes;
+	size_t maxLevel;
+	size_t numTrees;
+	size_t numLabels;
+	size_t numChains;
+	size_t maxAttributes;
+	size_t numAttributes;
 
 	std::string buildSource;
 	std::string classifySource;
@@ -32,9 +32,9 @@ class ECCExecutorOld
 
 	Measurement measurement;
 public:
-	ECCExecutorOld(int _maxLevel, int _maxAttributes, int _numAttributes, int _numTrees, int _numLabels, int _numChains, int _ensembleSubSetSize, int _forestSubSetSize);
+	ECCExecutorOld(size_t _maxLevel, size_t _maxAttributes, size_t _numAttributes, size_t _numTrees, size_t _numLabels, size_t _numChains, size_t _ensembleSubSetSize, size_t _forestSubSetSize);
 
-	void runBuild(ECCData& data, int treeLimit);
+	void runBuild(ECCData& data, size_t treeLimit);
 
 public:
 	std::vector<MultilabelPrediction> runClassify(ECCData& data, bool fix = true);

@@ -5,16 +5,16 @@
 class Tree
 {
 private:
-	const int maxLevel;
-	const int size;
+	const size_t maxLevel;
+	const size_t size;
 
-	const int label;
+	const size_t label;
 	std::vector<int> excludeValues;
 public:
-	Tree(int _numValues, int _maxLevel, int _label, std::vector<int> _excludeLabelIndices);
-	int getLabel();
+	Tree(size_t _numValues, size_t _maxLevel, size_t _label, std::vector<int> _excludeLabelIndices);
+	size_t getLabel();
 	const std::vector<int>& getExcludedValues();
-	int getMaxLevel();
-	int getTotalSize();
+	size_t getMaxLevel();
+	size_t getTotalSize();
 };
 

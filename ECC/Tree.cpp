@@ -1,11 +1,11 @@
 #include "Tree.hpp"
 
-Tree::Tree(int _numValues, int _maxLevel, int _label, std::vector<int> _excludeLabelIndices)
+Tree::Tree(size_t _numValues, size_t _maxLevel, size_t _label, std::vector<int> _excludeLabelIndices)
 	: maxLevel(_maxLevel), label(_label), excludeValues(_excludeLabelIndices), size(pow(2, _maxLevel + 1) - 1)
 {
 }
 
-int Tree::getLabel()
+size_t Tree::getLabel()
 {
 	return label;
 }
@@ -15,12 +15,12 @@ const std::vector<int>& Tree::getExcludedValues()
 	return excludeValues;
 }
 
-int Tree::getMaxLevel()
+size_t Tree::getMaxLevel()
 {
 	return maxLevel;
 }
 
-int Tree::getTotalSize()
+size_t Tree::getTotalSize()
 {
 	return size;
 }

@@ -5,8 +5,8 @@ class PredictionPerformance
 {
 private:
 	double threshold;
-	int numInstances;
-	int numLabels;
+	size_t numInstances;
+	size_t numLabels;
 
 	double loss(std::vector<MultilabelInstance> trueSet, std::vector<MultilabelPrediction> predictedSet);
 	double hammingLoss(std::vector<MultilabelInstance> trueSet, std::vector<MultilabelPrediction> predictedSet);
@@ -14,6 +14,6 @@ private:
 	double fmeasure(std::vector<MultilabelInstance> trueSet, std::vector<MultilabelPrediction> predictedSet);
 	double logloss(std::vector<MultilabelInstance> trueSet, std::vector<MultilabelPrediction> predictedSet);
 public:
-	PredictionPerformance(int _numLabels, int _numInstances, double _threshold);
+	PredictionPerformance(size_t _numLabels, size_t _numInstances, double _threshold);
 	Measurement calculatePerfomance(std::vector<MultilabelInstance> trueSet, std::vector<MultilabelPrediction> predictedSet);
 };

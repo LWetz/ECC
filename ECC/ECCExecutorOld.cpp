@@ -9,13 +9,13 @@ std::vector<int> ECCExecutorOld::partitionInstances(ECCData& data, EnsembleOfCla
 	}
 	else
 	{
-		for (int chain = 0; chain < ecc.getEnsembleSize(); ++chain)
+		for (size_t chain = 0; chain < ecc.getEnsembleSize(); ++chain)
 		{
-			for (int forest = 0; forest < ecc.getChainSize(); ++forest)
+			for (size_t forest = 0; forest < ecc.getChainSize(); ++forest)
 			{
-				for (int tree = 0; tree < ecc.getForestSize(); ++tree)
+				for (size_t tree = 0; tree < ecc.getForestSize(); ++tree)
 				{
-					for (int index = 0; index < data.getSize(); ++index)
+					for (size_t index = 0; index < data.getSize(); ++index)
 					{
 						indicesList.push_back(index);
 					}
@@ -26,7 +26,7 @@ std::vector<int> ECCExecutorOld::partitionInstances(ECCData& data, EnsembleOfCla
 	return indicesList;
 }
 
-ECCExecutorOld::ECCExecutorOld(int _maxLevel, int _maxAttributes, int _numAttributes, int _numTrees, int _numLabels, int _numChains, int _ensembleSubSetSize, int _forestSubSetSize)
+ECCExecutorOld::ECCExecutorOld(size_t _maxLevel, size_t _maxAttributes, size_t _numAttributes, size_t _numTrees, size_t _numLabels, size_t _numChains, size_t _ensembleSubSetSize, size_t _forestSubSetSize)
 	: nodeValues(NULL), nodeIndices(NULL), labelOrderBuffer(NULL), maxLevel(_maxLevel),
 	numTrees(_numTrees), maxAttributes(_maxAttributes), numLabels(_numLabels),
 	numChains(_numChains), numAttributes(_numAttributes),
@@ -42,10 +42,10 @@ ECCExecutorOld::ECCExecutorOld(int _maxLevel, int _maxAttributes, int _numAttrib
 	labelOrderBuffer = Buffer(sizeof(int) * ecc->getEnsembleSize() * ecc->getChainSize(), CL_MEM_READ_ONLY);
 	int* labelOrders = new int[ecc->getEnsembleSize() * ecc->getChainSize()];
 
-	int i = 0;
-	for (int chain = 0; chain < ecc->getEnsembleSize(); ++chain)
+	size_t i = 0;
+	for (size_t chain = 0; chain < ecc->getEnsembleSize(); ++chain)
 	{
-		for (int forest = 0; forest < ecc->getChainSize(); ++forest)
+		for (size_t forest = 0; forest < ecc->getChainSize(); ++forest)
 		{
 			labelOrders[i++] = ecc->getChains()[chain].getLabelOrder()[forest];
 		}
@@ -60,24 +60,24 @@ ECCExecutorOld::ECCExecutorOld(int _maxLevel, int _maxAttributes, int _numAttrib
 	measurement["oldSetupLabelOrdersWrite"] = labelOrderBuffer.getTransferTime();
 }
 
-void ECCExecutorOld::runBuild(ECCData& data, int treeLimit)
+void ECCExecutorOld::runBuild(ECCData& data, size_t treeLimit)
 {
 	std::cout << std::endl << "--- BUILD ---" << std::endl;
 
 	Util::StopWatch totalBuildTime;
 	totalBuildTime.start();
 
-	int totalTrees = numChains * numLabels * numTrees;
+	size_t totalTrees = numChains * numLabels * numTrees;
 	while (treeLimit % numLabels != 0 || totalTrees % treeLimit != 0)
 		--treeLimit;
 
 	size_t globalSize = treeLimit;
-	int chunkSize = globalSize / numLabels;
+	size_t chunkSize = globalSize / numLabels;
 
-	int nodesLastLevel = pow(2.0f, maxLevel);
-	int nodesPerTree = pow(2.0f, maxLevel + 1) - 1;
+	size_t nodesLastLevel = pow(2.0f, maxLevel);
+	size_t nodesPerTree = pow(2.0f, maxLevel + 1) - 1;
 
-	int maxSplits = ecc->getForestSubSetSize() - 1;
+	size_t maxSplits = ecc->getForestSubSetSize() - 1;
 
 	Util::StopWatch buildCompileTime;
 	buildCompileTime.start();
@@ -95,7 +95,7 @@ void ECCExecutorOld::runBuild(ECCData& data, int treeLimit)
 	Buffer dataBuffer(data.getValueCount() * data.getSize() * sizeof(double), CL_MEM_READ_ONLY);
 
 	double* dataArray = new double[data.getValueCount() * data.getSize()];
-	int dataBuffIdx = 0;
+	size_t dataBuffIdx = 0;
 	for (MultilabelInstance inst : data.getInstances())
 	{
 		memcpy(dataArray + dataBuffIdx, inst.getData().data(), inst.getValueCount() * sizeof(double));
@@ -104,8 +104,8 @@ void ECCExecutorOld::runBuild(ECCData& data, int treeLimit)
 	dataBuffer.writeFrom(dataArray, dataBuffer.getSize());
 	delete[] dataArray;
 
-	int numValues = data.getValueCount();
-	int numAttributes = data.getAttribCount();
+	size_t numValues = data.getValueCount();
+	size_t numAttributes = data.getAttribCount();
 
 	Buffer instancesBuffer(sizeof(int) * maxSplits*globalSize, CL_MEM_READ_WRITE);
 
@@ -166,12 +166,12 @@ void ECCExecutorOld::runBuild(ECCData& data, int treeLimit)
 
 	Util::StopWatch buildLoopTime;
 	buildLoopTime.start();
-	for (int chunk = 0; chunk < numChains * numTrees; chunk += chunkSize)
+	for (size_t chunk = 0; chunk < numChains * numTrees; chunk += chunkSize)
 	{
 		pGidMultiplier.write(gidMultiplier);
 
 		tmpNodeValueBuffer.zero();
-		for (int seed = 0; seed < globalSize; ++seed)
+		for (size_t seed = 0; seed < globalSize; ++seed)
 		{
 			seeds[seed] = Util::randomInt(INT_MAX);
 		}
@@ -225,11 +225,11 @@ std::vector<MultilabelPrediction> ECCExecutorOld::runClassify(ECCData& data, boo
 
 	measurement["oldClassifyCompileTime"] = classifyCompileTime.stop();
 
-	int dataSize = data.getSize();
+	size_t dataSize = data.getSize();
 	Buffer dataBuffer(data.getValueCount() * data.getSize() * sizeof(double), CL_MEM_READ_WRITE);
 
 	double* dataArray = new double[data.getValueCount() * dataSize];
-	int dataBuffIdx = 0;
+	size_t dataBuffIdx = 0;
 	for (MultilabelInstance inst : data.getInstances())
 	{
 		memcpy(dataArray + dataBuffIdx, inst.getData().data(), inst.getValueCount() * sizeof(double));
@@ -247,7 +247,7 @@ std::vector<MultilabelPrediction> ECCExecutorOld::runClassify(ECCData& data, boo
 	nodeValueBuffer.writeFrom(nodeValues, nodeValueBuffer.getSize());
 	nodeIndexBuffer.writeFrom(nodeIndices, nodeIndexBuffer.getSize());
 
-	int numValues = data.getValueCount();
+	size_t numValues = data.getValueCount();
 
 	ConstantBuffer maxLevelBuffer(maxLevel);
 	ConstantBuffer forestSizeBuffer(numTrees);
@@ -281,9 +281,9 @@ std::vector<MultilabelPrediction> ECCExecutorOld::runClassify(ECCData& data, boo
 	voteBuffer.readTo(votes, voteBuffer.getSize());
 	std::vector<MultilabelPrediction> predictions;
 
-	for (int d = 0; d < dataSize; ++d)
+	for (size_t d = 0; d < dataSize; ++d)
 	{
-		for (int l = 0; l < numLabels; ++l)
+		for (size_t l = 0; l < numLabels; ++l)
 		{
 			results[d * numLabels + l] = (1.0 + results[d * numLabels + l] / votes[d * numLabels + l]) / 2.0;
 		}

@@ -1,6 +1,6 @@
 #include "ECCData.hpp"
 
-MultilabelInstance::MultilabelInstance(const ArffInstance* inst, int _numLabels) : numLabels(_numLabels), numAttribs(inst->size() - _numLabels)
+MultilabelInstance::MultilabelInstance(const ArffInstance* inst, size_t _numLabels) : numLabels(_numLabels), numAttribs(inst->size() - _numLabels)
 {
 	data.reserve(inst->size());
 
@@ -47,22 +47,22 @@ std::vector<double>& MultilabelInstance::getData()
 	return data;
 }
 
-bool MultilabelInstance::getLabel(int labelIndex)
+bool MultilabelInstance::getLabel(size_t labelIndex)
 {
 	return data[numAttribs + labelIndex] > 0.0;
 }
 
-int MultilabelInstance::getNumLabels()
+size_t MultilabelInstance::getNumLabels()
 {
 	return numLabels;
 }
 
-int MultilabelInstance::getNumAttribs()
+size_t MultilabelInstance::getNumAttribs()
 {
 	return numAttribs;
 }
 
-int MultilabelInstance::getValueCount()
+size_t MultilabelInstance::getValueCount()
 {
 	return numLabels + numAttribs;
 }
@@ -75,22 +75,22 @@ MultilabelPrediction::MultilabelPrediction(double* begin, double* end)
 	}
 }
 
-int MultilabelPrediction::getNumLabels()
+size_t MultilabelPrediction::getNumLabels()
 {
 	return confidence.size();
 }
 
-double MultilabelPrediction::getConfidence(int labelIndex)
+double MultilabelPrediction::getConfidence(size_t labelIndex)
 {
 	return confidence[labelIndex];
 }
 
-bool MultilabelPrediction::getPrediction(int labelIndex, double threshold)
+bool MultilabelPrediction::getPrediction(size_t labelIndex, double threshold)
 {
 	return getConfidence(labelIndex) > threshold;
 }
 
-ECCData::ECCData(int labelCount, std::string arrfFile) : numLabels(labelCount)
+ECCData::ECCData(size_t labelCount, std::string arrfFile) : numLabels(labelCount)
 {
 	ArffParser parser(arrfFile);
 	ArffData *data(parser.parse());
@@ -103,7 +103,7 @@ ECCData::ECCData(int labelCount, std::string arrfFile) : numLabels(labelCount)
 	}
 }
 
-ECCData::ECCData(const std::vector<MultilabelInstance>& _instances, int _numAttributes, int _numLabels) : instances(_instances), numAttributes(_numAttributes), numLabels(_numLabels)
+ECCData::ECCData(const std::vector<MultilabelInstance>& _instances, size_t _numAttributes, size_t _numLabels) : instances(_instances), numAttributes(_numAttributes), numLabels(_numLabels)
 {
 }
 
@@ -115,17 +115,17 @@ std::vector<MultilabelInstance>& ECCData::getInstances()
 	return instances;
 }
 
-int ECCData::getAttribCount() const
+size_t ECCData::getAttribCount() const
 {
 	return numAttributes;
 }
 
-int ECCData::getLabelCount() const
+size_t ECCData::getLabelCount() const
 {
 	return numLabels;
 }
 
-int ECCData::getValueCount() const
+size_t ECCData::getValueCount() const
 {
 	return numLabels + numAttributes;
 }

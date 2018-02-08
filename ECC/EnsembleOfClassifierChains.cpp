@@ -1,6 +1,6 @@
 #include "EnsembleOfClassifierChains.hpp"
 
-EnsembleOfClassifierChains::EnsembleOfClassifierChains(int _numValues, int _numLabels, int _maxLevel, int _forestSize, int _ensembleSize, int _ensembleSubSetSize, int _forestSubSetSize)
+EnsembleOfClassifierChains::EnsembleOfClassifierChains(size_t _numValues, size_t _numLabels, size_t _maxLevel, size_t _forestSize, size_t _ensembleSize, size_t _ensembleSubSetSize, size_t _forestSubSetSize)
 	: numValues(_numValues), numAttributes(numValues - numLabels), numLabels(_numLabels), maxLevel(_maxLevel), forestSize(_forestSize), chainSize(_numLabels), ensembleSize(_ensembleSize),
 	treeSize(pow(2, _maxLevel + 1) - 1), totalSize(treeSize*forestSize*chainSize*ensembleSize), ensembleSubSetSize(_ensembleSubSetSize), forestSubSetSize(_forestSubSetSize), chains()
 {
@@ -22,23 +22,23 @@ EnsembleOfClassifierChains::EnsembleOfClassifierChains(int _numValues, int _numL
 	}
 }
 
-std::vector<int> EnsembleOfClassifierChains::partitionInstanceIndices(int maxIndex)
+std::vector<int> EnsembleOfClassifierChains::partitionInstanceIndices(size_t maxIndex)
 {
 	auto instances = std::vector<int>((forestSubSetSize-1) * chainSize * forestSize * ensembleSize);
 
-	for (int chain = 0; chain < ensembleSize; chain++)
+	for (size_t chain = 0; chain < ensembleSize; chain++)
 	{
 		std::vector<int> chainIndices;
 		chainIndices.reserve(ensembleSubSetSize);
 
-		for (int i = 0; i < ensembleSubSetSize; i++)
+		for (size_t i = 0; i < ensembleSubSetSize; i++)
 		{
 			chainIndices.push_back(Util::randomInt(maxIndex, chainIndices));
 		}
 
-		for (int forest = 0; forest < chainSize; forest++)
+		for (size_t forest = 0; forest < chainSize; forest++)
 		{
-			for (int tree = 0; tree < forestSize; tree++)
+			for (size_t tree = 0; tree < forestSize; tree++)
 			{
 				std::vector<int> treeInstances(chainIndices);
 
@@ -60,62 +60,62 @@ const std::vector<ClassifierChain>& EnsembleOfClassifierChains::getChains()
 	return chains;
 }
 
-int EnsembleOfClassifierChains::getNumValues()
+size_t EnsembleOfClassifierChains::getNumValues()
 {
 	return numValues;
 }
 
-int EnsembleOfClassifierChains::getNumAttributes()
+size_t EnsembleOfClassifierChains::getNumAttributes()
 {
 	return numAttributes;
 }
 
-int EnsembleOfClassifierChains::getNumLabels()
+size_t EnsembleOfClassifierChains::getNumLabels()
 {
 	return numLabels;
 }
 
-int EnsembleOfClassifierChains::getEnsembleSubSetSize()
+size_t EnsembleOfClassifierChains::getEnsembleSubSetSize()
 {
 	return ensembleSubSetSize;
 }
 
-int EnsembleOfClassifierChains::getForestSubSetSize()
+size_t EnsembleOfClassifierChains::getForestSubSetSize()
 {
 	return forestSubSetSize;
 }
 
-int EnsembleOfClassifierChains::getMaxLevel()
+size_t EnsembleOfClassifierChains::getMaxLevel()
 {
 	return maxLevel;
 }
 
-int EnsembleOfClassifierChains::getTreeSize()
+size_t EnsembleOfClassifierChains::getTreeSize()
 {
 	return treeSize;
 }
 
-int EnsembleOfClassifierChains::getForestSize()
+size_t EnsembleOfClassifierChains::getForestSize()
 {
 	return forestSize;
 }
 
-int EnsembleOfClassifierChains::getChainSize()
+size_t EnsembleOfClassifierChains::getChainSize()
 {
 	return chainSize;
 }
 
-int EnsembleOfClassifierChains::getEnsembleSize()
+size_t EnsembleOfClassifierChains::getEnsembleSize()
 {
 	return ensembleSize;
 }
 
-int EnsembleOfClassifierChains::getTotalSize()
+size_t EnsembleOfClassifierChains::getTotalSize()
 {
 	return totalSize;
 }
 
-int EnsembleOfClassifierChains::getSize()
+size_t EnsembleOfClassifierChains::getSize()
 {
 	return forestSize * treeSize * chainSize * ensembleSize;
 }

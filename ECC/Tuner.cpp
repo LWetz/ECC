@@ -22,7 +22,7 @@ std::unique_ptr<atf::tuner_with_constraints> make_tuner(G_CLASSES... G_classes)
 	}
 	else
 	{
-		size_t evaluation = std::min(EXHAUSTIVE_THRESHOLD, int(0.25f * search_space_size));
+		size_t evaluation = std::min(EXHAUSTIVE_THRESHOLD, (size_t)(0.25f * search_space_size));
 
 		tuner = new atf::open_tuner_class<>(atf::cond::evaluations(evaluation));
 	}
@@ -59,7 +59,7 @@ double ECCTuner::tuneBuildFunc(atf::configuration config)
 	return eccEx.tuneBuild(config["NUM_WI"], config["NUM_WG"]);
 }
 
-Configuration ECCTuner::runBuildTuner(int treesPerRun)
+Configuration ECCTuner::runBuildTuner(size_t treesPerRun)
 {
 	auto tp_NUM_WG = atf::tp("NUM_WG", atf::interval(1, treesPerRun),
 		[&](auto tp_NUM_WG) { return (treesPerRun % tp_NUM_WG) == 0; });
@@ -77,7 +77,7 @@ Configuration ECCTuner::runBuildTuner(int treesPerRun)
 	return bestBuildConfig;
 }
 
-Configuration ECCTuner::runClassifyStepTuner(int numInstances)
+Configuration ECCTuner::runClassifyStepTuner(size_t numInstances)
 {
 	auto tp_NUM_WG_CHAINS_SC = atf::tp("NUM_WG_CHAINS_SC", atf::interval(1, numChains),
 		[&](auto tp_NUM_WG_CHAINS_SC) { return (numChains % tp_NUM_WG_CHAINS_SC) == 0; });
@@ -108,7 +108,7 @@ Configuration ECCTuner::runClassifyStepTuner(int numInstances)
 	return bestStepConfig;
 }
 
-Configuration ECCTuner::runClassifyFinalTuner(int numInstances)
+Configuration ECCTuner::runClassifyFinalTuner(size_t numInstances)
 {
 	auto tp_NUM_WG_CHAINS_FC = atf::tp("NUM_WG_CHAINS_FC", atf::interval(1, numChains),
 		[&](auto tp_NUM_WG_CHAINS_FC) { return (numChains % tp_NUM_WG_CHAINS_FC) == 0; });
@@ -139,13 +139,13 @@ Configuration ECCTuner::runClassifyFinalTuner(int numInstances)
 	return bestFinalConfig;
 }
 
-ECCTuner::ECCTuner(int _maxLevel, int _maxAttributes, int _numAttributes, int _numTrees, int _numLabels, int _numChains, int _ensembleSubSetSize, int _forestSubSetSize)
+ECCTuner::ECCTuner(size_t _maxLevel, size_t _maxAttributes, size_t _numAttributes, size_t _numTrees, size_t _numLabels, size_t _numChains, size_t _ensembleSubSetSize, size_t _forestSubSetSize)
 	: eccEx(_maxLevel, _maxAttributes, _numAttributes, _numTrees, _numLabels, _numChains, _ensembleSubSetSize, _forestSubSetSize),
 	numChains(_numChains), numTrees(_numTrees), numLabels(_numLabels)
 {
 }
 
-Configuration ECCTuner::tuneBuild(ECCData& buildData, int treesPerRun)
+Configuration ECCTuner::tuneBuild(ECCData& buildData, size_t treesPerRun)
 {
 	eccEx.prepareBuild(buildData, treesPerRun);
 	auto best_config = runBuildTuner(treesPerRun);
@@ -153,7 +153,7 @@ Configuration ECCTuner::tuneBuild(ECCData& buildData, int treesPerRun)
 	return best_config;
 }
 
-Configuration ECCTuner::tuneClassifyStep(ECCData& buildData, int treesPerRun, ECCData& classifyData, Configuration config)
+Configuration ECCTuner::tuneClassifyStep(ECCData& buildData, size_t treesPerRun, ECCData& classifyData, Configuration config)
 {
 	eccEx.runBuild(buildData, treesPerRun, config["NUM_WI"], config["NUM_WG"]);
 	eccEx.prepareClassify(classifyData);
@@ -162,7 +162,7 @@ Configuration ECCTuner::tuneClassifyStep(ECCData& buildData, int treesPerRun, EC
 	return best_config;
 }
 
-Configuration ECCTuner::tuneClassifyFinal(ECCData& buildData, int treesPerRun, ECCData& classifyData, Configuration config)
+Configuration ECCTuner::tuneClassifyFinal(ECCData& buildData, size_t treesPerRun, ECCData& classifyData, Configuration config)
 {
 	eccEx.runBuild(buildData, treesPerRun, config["NUM_WI"], config["NUM_WG"]);
 	eccEx.prepareClassify(classifyData);

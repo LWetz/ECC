@@ -21,12 +21,12 @@ bool cmdOptionExists(char** begin, char** end, const std::string& option)
 	return std::find(begin, end, option) != end;
 }
 
-int getIntegerCmdOption(char ** begin, char ** end, int defaultVal, const std::string & option)
+size_t getIntegerCmdOption(char ** begin, char ** end, size_t defaultVal, const std::string & option)
 {
 	if (char* cmd = getCmdOption(begin, end, option))
 	{
 		try {
-			return std::stoi(cmd);
+			return std::stoul(cmd);
 		}
 		catch (...)
 		{
@@ -38,9 +38,9 @@ int getIntegerCmdOption(char ** begin, char ** end, int defaultVal, const std::s
 	return defaultVal;
 }
 
-int calcTreesPerRun(int nodeLimit, int totalTrees, int nodesPerTree)
+size_t calcTreesPerRun(size_t nodeLimit, size_t totalTrees, size_t nodesPerTree)
 {
-	int treeLimit = nodeLimit / nodesPerTree;
+	size_t treeLimit = nodeLimit / nodesPerTree;
 
 	treeLimit = treeLimit > 0 ? treeLimit : 1;
 
@@ -54,7 +54,7 @@ int calcTreesPerRun(int nodeLimit, int totalTrees, int nodesPerTree)
 }
 
 
-std::string makeFileName(const char* prefix, const char* dataset, const char* pname, int maxLevel, int numChains, int numTrees)
+std::string makeFileName(const char* prefix, const char* dataset, const char* pname, size_t maxLevel, size_t numChains, size_t numTrees)
 {
 	std::string datasetstr(dataset);
 
@@ -147,7 +147,7 @@ int main(int argc, char* argv[]) {
 
 	char* dataset = getCmdOption(argv + 2, argv + argc, "-d");
 	char* labelcount = getCmdOption(argv + 2, argv + argc, "-l");
-	int numLabels;
+	size_t numLabels;
 
 	if(!dataset && !labelcount)
 	{
@@ -170,28 +170,28 @@ int main(int argc, char* argv[]) {
 	std::vector<MultilabelInstance> trainInstances;
 	std::vector<MultilabelInstance> evalInstances;
 	std::vector<MultilabelInstance> evalOriginal;
-	int numAttributes;
+	size_t numAttributes;
 
 	try {
 		ECCData data(numLabels, dataset);
-		int trainSize = 0.67 * data.getSize();
-		int evalSize = data.getSize() - trainSize;
+		size_t trainSize = 0.67 * data.getSize();
+		size_t evalSize = data.getSize() - trainSize;
 		inputCopy = data.getInstances();
 		trainInstances.reserve(trainSize);
 		evalInstances.reserve(evalSize);
 		Util::RANDOM.setSeed(10101001);
-		for (int i = 0; i < trainSize; ++i)
+		for (size_t i = 0; i < trainSize; ++i)
 		{
 			int idx = Util::randomInt(inputCopy.size());
 			trainInstances.push_back(inputCopy[idx]);
 			inputCopy.erase(inputCopy.begin() + idx);
 		}
-		for (int i = 0; i < evalSize; ++i)
+		for (size_t i = 0; i < evalSize; ++i)
 		{
 			int idx = Util::randomInt(inputCopy.size());
 			MultilabelInstance inst = inputCopy[idx];
 			evalOriginal.push_back(inst);
-			for (int i = inst.getNumAttribs(); i < inst.getValueCount(); ++i)
+			for (size_t i = inst.getNumAttribs(); i < inst.getValueCount(); ++i)
 			{
 				inst.getData()[i] = 0.0;
 			}
@@ -209,15 +209,15 @@ int main(int argc, char* argv[]) {
 	ECCData trainData(trainInstances, numAttributes, numLabels);
 	ECCData evalData(evalInstances, numAttributes, numLabels);
 
-	int maxLevel;
-	int numTrees;
-	int numChains;
-	int ensembleSubSetSize;
-	int forestSubSetSize;
-	int nodeLimit;
+	size_t maxLevel;
+	size_t numTrees;
+	size_t numChains;
+	size_t ensembleSubSetSize;
+	size_t forestSubSetSize;
+	size_t nodeLimit;
 
-	int totalTrees;
-	int nodesPerTree;
+	size_t totalTrees;
+	size_t nodesPerTree;
 
 	try {
 		maxLevel = getIntegerCmdOption(argv + 2, argv + argc, 10, "-depth");
@@ -234,7 +234,7 @@ int main(int argc, char* argv[]) {
 		return -3;
 	}
 
-	int treesPerRun = calcTreesPerRun(nodeLimit, totalTrees, nodesPerTree);
+	size_t treesPerRun = calcTreesPerRun(nodeLimit, totalTrees, nodesPerTree);
 
 	std::string configFileName = makeFileName("config_", dataset, pname, maxLevel, numChains, numTrees);
 	std::string measureFileName = makeFileName("measure_", dataset, pname, maxLevel, numChains, numTrees);
@@ -282,8 +282,6 @@ int main(int argc, char* argv[]) {
 	else if (std::string(argv[1]).compare("measure") == 0)
 	{
 		auto config = readKeyValFile<Configuration>(configFileName);
-		std::vector<double> values;
-		std::vector<int> votes;
 		ECCExecutorNew eccEx(maxLevel, numAttributes, numAttributes, numTrees, numLabels, numChains, ensembleSubSetSize, forestSubSetSize);
 		eccEx.runBuild(trainData, treesPerRun, config["NUM_WI"], config["NUM_WG"]);
 		auto predictions = eccEx.runClassify(evalData, config);
@@ -299,9 +297,6 @@ int main(int argc, char* argv[]) {
 	}
 	else if (std::string(argv[1]).compare("measureold") == 0)
 	{
-		std::vector<double> values;
-		std::vector<int> votes;
-
 		ECCExecutorOld eccEx(maxLevel, numAttributes, numAttributes, numTrees, numLabels, numChains, ensembleSubSetSize, forestSubSetSize);
 		eccEx.runBuild(trainData, treesPerRun);
 		auto predictions = eccEx.runClassify(evalData);

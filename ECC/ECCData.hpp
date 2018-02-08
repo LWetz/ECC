@@ -6,18 +6,18 @@
 class MultilabelInstance
 {
 private:
-	int numLabels;
-	int numAttribs;
+	size_t numLabels;
+	size_t numAttribs;
 	std::vector<double> data;
 
 public:
-	MultilabelInstance(const ArffInstance* inst, int _numLabels);
+	MultilabelInstance(const ArffInstance* inst, size_t _numLabels);
 
 	std::vector<double>& getData();
-	bool getLabel(int labelIndex);
-	int getNumLabels();
-	int getNumAttribs();
-	int getValueCount();
+	bool getLabel(size_t labelIndex);
+	size_t getNumLabels();
+	size_t getNumAttribs();
+	size_t getValueCount();
 };
 
 class MultilabelPrediction
@@ -28,29 +28,29 @@ private:
 public:
 	MultilabelPrediction(double* begin, double* end);
 
-	int getNumLabels();
-	double getConfidence(int labelIndex);
-	bool getPrediction(int labelIndex, double threshold);
+	size_t getNumLabels();
+	double getConfidence(size_t labelIndex);
+	bool getPrediction(size_t labelIndex, double threshold);
 };
 
 class ECCData
 {
 private:
-	int numAttributes;
-	int numLabels;
+	size_t numAttributes;
+	size_t numLabels;
 
 	std::vector<MultilabelInstance> instances;
 
 public:
-	ECCData(int labelCount, std::string arrfFile);
-	ECCData(const std::vector<MultilabelInstance>& _instances, int _numAttributes, int _numLabels);
+	ECCData(size_t labelCount, std::string arrfFile);
+	ECCData(const std::vector<MultilabelInstance>& _instances, size_t _numAttributes, size_t _numLabels);
 	~ECCData();
 
 	std::vector<MultilabelInstance>& getInstances();
 
-	int getAttribCount() const;
-	int getLabelCount() const;
-	int getValueCount() const;
+	size_t getAttribCount() const;
+	size_t getLabelCount() const;
+	size_t getValueCount() const;
 	size_t getSize() const;
 };
 

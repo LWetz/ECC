@@ -17,12 +17,12 @@ class ECCExecutorNew
 	double* nodeValues;
 	int* nodeIndices;
 	Buffer labelOrderBuffer;
-	int maxLevel;
-	int numTrees;
-	int numLabels;
-	int numChains;
-	int maxAttributes;
-	int numAttributes;
+	size_t maxLevel;
+	size_t numTrees;
+	size_t numLabels;
+	size_t numChains;
+	size_t maxAttributes;
+	size_t numAttributes;
 
 	std::string buildSource;
 	std::string stepCalcSource;
@@ -43,8 +43,8 @@ class ECCExecutorNew
 		Buffer instancesNextLengthBuffer;
 		Buffer seedsBuffer;
 
-		int numTrees;
-		int numInstances;
+		size_t numTrees;
+		size_t numInstances;
 	};
 
 	BuildData *buildData;
@@ -57,7 +57,7 @@ class ECCExecutorNew
 		Buffer stepNodeValueBuffer;
 		Buffer stepNodeIndexBuffer;
 
-		int numInstances;
+		size_t numInstances;
 	};
 
 	ClassifyData *classifyData;
@@ -65,13 +65,13 @@ class ECCExecutorNew
 	Measurement measurement;
 
 public:
-	ECCExecutorNew(int _maxLevel, int _maxAttributes, int _numAttributes, int _numTrees, int _numLabels, int _numChains, int _ensembleSubSetSize, int _forestSubSetSize);
+	ECCExecutorNew(size_t _maxLevel, size_t _maxAttributes, size_t _numAttributes, size_t _numTrees, size_t _numLabels, size_t _numChains, size_t _ensembleSubSetSize, size_t _forestSubSetSize);
 
-	void prepareBuild(ECCData& data, int treesPerRun);
+	void prepareBuild(ECCData& data, size_t treesPerRun);
 	double tuneBuild(size_t workitems, size_t workgroups);
 	void finishBuild();
 
-	void runBuild(ECCData& data, int treesPerRun, size_t workitems, size_t workgroups);
+	void runBuild(ECCData& data, size_t treesPerRun, size_t workitems, size_t workgroups);
 
 private:
 	typedef struct TreeVote
@@ -82,7 +82,7 @@ private:
 
 public:
 	void prepareClassify(ECCData& data);
-	double tuneClassifyStep(Configuration config, int oneStep = true);
+	double tuneClassifyStep(Configuration config, bool oneStep = true);
 	double tuneClassifyFinal(Configuration config);
 	void finishClassify();
 
