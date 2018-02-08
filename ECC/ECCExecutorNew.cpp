@@ -519,7 +519,7 @@ double ECCExecutorNew::tuneClassifyFinal(Configuration config)
 		finalReduceKernel = new Kernel(prog, "finalReduce");
 		clReleaseProgram(prog);
 
-		int finalIntermediateBufferSize[3] = { classifyData->numInstances, numLabels, config["NUM_WG_CHAINS_FC"] };
+		int finalIntermediateBufferSize[3] = { classifyData->numInstances, numLabels, (int)config["NUM_WG_CHAINS_FC"] };
 		int finalIntermediateBufferTotalSize = finalIntermediateBufferSize[0] * finalIntermediateBufferSize[1] * finalIntermediateBufferSize[2];
 
 		int localBufferSize_FC = config["NUM_WI_INSTANCES_FC"] * config["NUM_WI_LABELS_FC"] * config["NUM_WI_CHAINS_FC"];
@@ -649,7 +649,7 @@ std::vector<MultilabelPrediction> ECCExecutorNew::runClassify(ECCData& data, Con
 
 	measurement["classifyCompileTime"] = classifyCompileTime.stop();
 
-	int stepIntermediateBufferSize[3] = { numInstances, numChains, config["NUM_WG_TREES_SC"] };
+	int stepIntermediateBufferSize[3] = { numInstances, numChains, (int)config["NUM_WG_TREES_SC"] };
 	int stepIntermediateBufferTotalSize = stepIntermediateBufferSize[0] * stepIntermediateBufferSize[1] * stepIntermediateBufferSize[2];
 
 	int localBufferSize_SC = config["NUM_WI_INSTANCES_SC"] * config["NUM_WI_CHAINS_SC"] * config["NUM_WI_TREES_SC"];
@@ -677,7 +677,7 @@ std::vector<MultilabelPrediction> ECCExecutorNew::runClassify(ECCData& data, Con
 	stepReduceKernel->setGlobalSize({ config["NUM_WG_INSTANCES_SR"] * config["NUM_WI_INSTANCES_SR"], config["NUM_WG_CHAINS_SR"] * config["NUM_WI_CHAINS_SR"], config["NUM_WI_TREES_SR"] });
 	stepReduceKernel->setLocalSize({ config["NUM_WI_INSTANCES_SR"], config["NUM_WI_CHAINS_SR"], config["NUM_WI_TREES_SR"] });
 
-	int finalIntermediateBufferSize[3] = { numInstances, numLabels, config["NUM_WG_CHAINS_FC"] };
+	int finalIntermediateBufferSize[3] = { numInstances, numLabels, (int)config["NUM_WG_CHAINS_FC"] };
 	int finalIntermediateBufferTotalSize = finalIntermediateBufferSize[0] * finalIntermediateBufferSize[1] * finalIntermediateBufferSize[2];
 
 	int localBufferSize_FC = config["NUM_WI_INSTANCES_FC"] * config["NUM_WI_LABELS_FC"] * config["NUM_WI_CHAINS_FC"];
