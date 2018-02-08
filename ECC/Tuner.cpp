@@ -3,6 +3,8 @@
 #ifndef _WIN32
 #include "atf_library/atf.h"
 
+#define EXHAUSTIVE_THRESHOLD 50000
+
 template<typename... G_CLASSES >
 std::unique_ptr<atf::tuner_with_constraints> make_tuner(G_CLASSES... G_classes)
 {
@@ -16,7 +18,7 @@ std::unique_ptr<atf::tuner_with_constraints> make_tuner(G_CLASSES... G_classes)
 	atf::tuner_with_constraints *tuner;
 	if (search_space_size <= EXHAUSTIVE_THRESHOLD)
 	{
-		tuner = new atf::exhaustive_class<>(atf::cond::evaluations(search_space_size)));
+		tuner = new atf::exhaustive_class<>(atf::cond::evaluations(search_space_size));
 	}
 	else
 	{
@@ -63,7 +65,7 @@ Configuration ECCTuner::runBuildTuner(int treesPerRun)
 		[&](auto tp_NUM_WI) { return ((treesPerRun / tp_NUM_WG) % tp_NUM_WI) == 0; });
 
 	auto tuner = make_tuner(G(tp_NUM_WG, tp_NUM_WI));
-	auto best_config = *tuner(std::bind(&ECCTuner::tuneBuildFunc, this, std::placeholders::_1));
+	auto best_config = tuner->operator()(std::bind(&ECCTuner::tuneBuildFunc, this, std::placeholders::_1));
 
 	Configuration bestBuildConfig;
 	for (auto it = best_config.begin(); it != best_config.end(); ++it)
@@ -94,7 +96,7 @@ Configuration ECCTuner::runClassifyStepTuner(int numInstances)
 		G(tp_NUM_WG_CHAINS_SC, tp_NUM_WI_CHAINS_SC),
 		G(tp_NUM_WG_INSTANCES_SC, tp_NUM_WI_INSTANCES_SC),
 		G(tp_NUM_WG_TREES_SC, tp_NUM_WI_TREES_SC, tp_NUM_WI_TREES_SR));
-	auto best_config = *tuner(std::bind(&ECCTuner::tuneClassifyStepFunc, this, std::placeholders::_1));
+	auto best_config = tuner->operator()(std::bind(&ECCTuner::tuneClassifyStepFunc, this, std::placeholders::_1));
 
 	Configuration bestStepConfig;
 	for (auto it = best_config.begin(); it != best_config.end(); ++it)
@@ -125,7 +127,7 @@ Configuration ECCTuner::runClassifyFinalTuner(int numInstances)
 		G(tp_NUM_WG_CHAINS_FC, tp_NUM_WI_CHAINS_FC, tp_NUM_WI_CHAINS_FR),
 		G(tp_NUM_WG_INSTANCES_FC, tp_NUM_WI_INSTANCES_FC),
 		G(tp_NUM_WG_LABELS_FC, tp_NUM_WI_LABELS_FC));
-	auto best_config = *tuner(std::bind(&ECCTuner::tuneClassifyFinalFunc, this, std::placeholders::_1));
+	auto best_config = tuner->operator()(std::bind(&ECCTuner::tuneClassifyFinalFunc, this, std::placeholders::_1));
 
 	Configuration bestFinalConfig;
 	for (auto it = best_config.begin(); it != best_config.end(); ++it)
