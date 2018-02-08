@@ -82,13 +82,13 @@ Configuration ECCTuner::runClassifyStepTuner(size_t numInstances)
 {
 	auto tp_NUM_WG_CHAINS_SC = atf::tp("NUM_WG_CHAINS_SC", atf::interval(ONE, numChains),
 		[&](auto tp_NUM_WG_CHAINS_SC) { return (numChains % tp_NUM_WG_CHAINS_SC) == 0; });
-	auto tp_NUM_WG_INSTANCES_SC = atf::tp("NUM_WG_INSTANCES_SC", atf::interval(ONE, (int)numInstances),
+	auto tp_NUM_WG_INSTANCES_SC = atf::tp("NUM_WG_INSTANCES_SC", atf::interval(ONE, numInstances),
 		[&](auto tp_NUM_WG_INSTANCES_SC) { return (numInstances % tp_NUM_WG_INSTANCES_SC) == 0; });
 	auto tp_NUM_WG_TREES_SC = atf::tp("NUM_WG_TREES_SC", atf::interval(ONE, numTrees),
 		[&](auto tp_NUM_WG_TREES_SC) { return (numTrees % tp_NUM_WG_TREES_SC) == 0; });
 	auto tp_NUM_WI_CHAINS_SC = atf::tp("NUM_WI_CHAINS_SC", atf::interval(ONE, numChains),
 		[&](auto tp_NUM_WI_CHAINS_SC) { return ((numChains / tp_NUM_WG_CHAINS_SC) % tp_NUM_WI_CHAINS_SC) == 0; });
-	auto tp_NUM_WI_INSTANCES_SC = atf::tp("NUM_WI_INSTANCES_SC", atf::interval(ONE, (int)numInstances),
+	auto tp_NUM_WI_INSTANCES_SC = atf::tp("NUM_WI_INSTANCES_SC", atf::interval(ONE, numInstances),
 		[&](auto tp_NUM_WI_INSTANCES_SC) { return ((numInstances / tp_NUM_WG_INSTANCES_SC) % tp_NUM_WI_INSTANCES_SC) == 0; });
 	auto tp_NUM_WI_TREES_SC = atf::tp("NUM_WI_TREES_SC", atf::interval(ONE, numTrees),
 		[&](auto tp_NUM_WI_TREES_SC) { return ((numTrees / tp_NUM_WG_TREES_SC) % tp_NUM_WI_TREES_SC) == 0; });
@@ -113,13 +113,13 @@ Configuration ECCTuner::runClassifyFinalTuner(size_t numInstances)
 {
 	auto tp_NUM_WG_CHAINS_FC = atf::tp("NUM_WG_CHAINS_FC", atf::interval(ONE, numChains),
 		[&](auto tp_NUM_WG_CHAINS_FC) { return (numChains % tp_NUM_WG_CHAINS_FC) == 0; });
-	auto tp_NUM_WG_INSTANCES_FC = atf::tp("NUM_WG_INSTANCES_FC", atf::interval(ONE, (int)numInstances),
+	auto tp_NUM_WG_INSTANCES_FC = atf::tp("NUM_WG_INSTANCES_FC", atf::interval(ONE, numInstances),
 		[&](auto tp_NUM_WG_INSTANCES_FC) { return (numInstances % tp_NUM_WG_INSTANCES_FC) == 0; });
 	auto tp_NUM_WG_LABELS_FC = atf::tp("NUM_WG_LABELS_FC", atf::interval(ONE, numLabels),
 		[&](auto tp_NUM_WG_LABELS_FC) { return (numLabels % tp_NUM_WG_LABELS_FC) == 0; });
 	auto tp_NUM_WI_CHAINS_FC = atf::tp("NUM_WI_CHAINS_FC", atf::interval(ONE, numChains),
 		[&](auto tp_NUM_WI_CHAINS_FC) { return ((numChains / tp_NUM_WG_CHAINS_FC) % tp_NUM_WI_CHAINS_FC) == 0; });
-	auto tp_NUM_WI_INSTANCES_FC = atf::tp("NUM_WI_INSTANCES_FC", atf::interval(ONE, (int)numInstances),
+	auto tp_NUM_WI_INSTANCES_FC = atf::tp("NUM_WI_INSTANCES_FC", atf::interval(ONE, numInstances),
 		[&](auto tp_NUM_WI_INSTANCES_FC) { return ((numInstances / tp_NUM_WG_INSTANCES_FC) % tp_NUM_WI_INSTANCES_FC) == 0; });
 	auto tp_NUM_WI_LABELS_FC = atf::tp("NUM_WI_LABELS_FC", atf::interval(ONE, numLabels),
 		[&](auto tp_NUM_WI_LABELS_FC) { return ((numLabels / tp_NUM_WG_LABELS_FC) % tp_NUM_WI_LABELS_FC) == 0; });
