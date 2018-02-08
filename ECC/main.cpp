@@ -119,7 +119,7 @@ T readKeyValFile(std::string fileName)
 }
 
 template<typename T>
-void updateConfigFile(T keyval, std::string fileName)
+void updateKeyValFile(T keyval, std::string fileName)
 {
 	auto oldConf = readKeyValFile<T>(fileName);
 	for (auto it = keyval.begin(); it != keyval.end(); ++it)

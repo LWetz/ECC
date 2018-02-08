@@ -24,18 +24,14 @@ public:
 	void SetArg(size_t idx, Buffer& buff);
 	void setDim(size_t dimension);
 
-	template<typename ...DimSizes>
-	void setGlobalSize(DimSizes... gs)
+	void setGlobalSize(std::initializer_list<size_t> gs)
 	{
-		size_t arr[] = { gs... };
-		setGlobalSize(std::vector<size_t>(arr, arr + sizeof...(gs)));
+		setGlobalSize(std::vector<size_t>(gs));
 	}
 
-	template<typename ...DimSizes>
-	void setLocalSize(DimSizes... ls)
+	void setLocalSize(std::initializer_list<size_t> ls)
 	{
-		size_t arr[] = { ls... };
-		setLocalSize(std::vector<size_t>(arr, arr + sizeof...(ls)));
+		setLocalSize(std::vector<size_t>(ls));
 	}
 
 	void setGlobalSize(std::vector<size_t> gs);
