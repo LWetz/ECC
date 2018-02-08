@@ -16,9 +16,9 @@ private:
 	double tuneClassifyFinalFunc(atf::configuration config);
 	double tuneBuildFunc(atf::configuration config);
 
-	void runBuildTuner(int treesPerRun);
-	void runClassifyStepTuner(int numInstances);
-	void runClassifyFinalTuner(int numInstances);
+	Configuration runBuildTuner(int treesPerRun);
+	Configuration runClassifyStepTuner(int numInstances);
+	Configuration runClassifyFinalTuner(int numInstances);
 public:
 	ECCTuner(int _maxLevel, int _maxAttributes, int _numAttributes, int _numTrees, int _numLabels, int _numChains, int _ensembleSubSetSize, int _forestSubSetSize);
 
