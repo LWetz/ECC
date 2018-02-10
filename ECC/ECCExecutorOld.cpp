@@ -274,6 +274,8 @@ std::vector<MultilabelPrediction> ECCExecutorOld::runClassify(ECCData& data, boo
 	classifyKernel->execute();
 
 	measurement["oldClassifyResultZero"] = resultBuffer.getTransferTime();
+	Util::StopWatch readBackTime;
+	readBackTime.start();
 
 	double* results = new double[dataSize * numLabels];
 	int* votes = new int[dataSize * numLabels];
@@ -292,6 +294,7 @@ std::vector<MultilabelPrediction> ECCExecutorOld::runClassify(ECCData& data, boo
 	delete[] results;
 	delete[] votes;
 
+	measurement["classifyReadBackTime"] = readBackTime.stop();
 	measurement["oldClassifyNodeIndexWrite"] += nodeIndexBuffer.getTransferTime();
 	measurement["oldClassifyNodeValueWrite"] += nodeValueBuffer.getTransferTime();
 	measurement["oldClassifyKernel"] = classifyKernel->getRuntime();

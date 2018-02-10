@@ -723,6 +723,11 @@ std::vector<MultilabelPrediction> ECCExecutorNew::runClassify(ECCData& data, Con
 	}
 	finalCalcKernel->execute();
 	finalReduceKernel->execute();
+	measurement["classifyFinalCalcKernel"] = finalCalcKernel->getRuntime();
+	measurement["classifyFinalReduceKernel"] = finalReduceKernel->getRuntime();
+	measurement["classifyCalculationTime"] = classifyLoopTime.stop();
+	Util::StopWatch readBackTime;
+	readBackTime.start();
 
 	double* results = new double[numInstances * numLabels];
 	resultBuffer.readTo(results, resultBuffer.getSize());
@@ -734,12 +739,10 @@ std::vector<MultilabelPrediction> ECCExecutorNew::runClassify(ECCData& data, Con
 	}
 	delete[] results;
 
-	measurement["classifyFinalCalcKernel"] = finalCalcKernel->getRuntime();
-	measurement["classifyFinalReduceKernel"] = finalReduceKernel->getRuntime();
+	measurement["classifyReadBackTime"] = readBackTime.stop();
 	measurement["classifyDataWrite"] = dataBuffer.getTransferTime();
-	measurement["classifyLoopTime"] = classifyLoopTime.stop();
+	measurement["classifyResultRead"] = resultBuffer.getTransferTime();
 	measurement["classifyTotalTime"] = totalClassifyTime.stop();
-	measurement["classifyValuesRead"] = resultBuffer.getTransferTime();
 
 	stepIntermediateBuffer.clear();
 	finalIntermediateBuffer.clear();
