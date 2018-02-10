@@ -46,7 +46,7 @@ inline void addAssignOutputAtomsGlo(global OutputAtom* a, global OutputAtom* b)
 typedef struct Instance
 {
 	global double* attributes;
-	global OutputAtom* labels;
+	global double* labels;
 }Instance;
 
 typedef struct Tree
@@ -76,7 +76,7 @@ OutputAtom traverse(InputAtom input)
 			value = input.inst.attributes[attributeIndex];
 		else
 		{
-			value = input.inst.labels[(attributeIndex - NUM_ATTRIBUTES)*NUM_CHAINS].result;
+			value = input.inst.labels[(attributeIndex - NUM_ATTRIBUTES)*NUM_CHAINS];
 			value = value > 0 ? 1.0 : 0.0;
 		}
 
@@ -104,7 +104,7 @@ kernel void stepCalc(
 		global double* nodeValues,
 		global int* attributeIndices,
 		global double* data,
-		global OutputAtom* labelBuffer,
+		global double* labelBuffer,
 		local OutputAtom* localBuffer,
 		global OutputAtom* intermediateBuffer
 	)

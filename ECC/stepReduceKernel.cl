@@ -43,7 +43,7 @@ inline void addAssignOutputAtomsGlo(global OutputAtom* a, global OutputAtom* b)
 }
 
 kernel void stepReduce(	global OutputAtom* intermediateBuffer,
-						global OutputAtom* labelBuffer,
+						global double* labelBuffer,
 						global int* labelOrders,
 						local OutputAtom* localBuffer,
 						int forest)
@@ -99,7 +99,10 @@ kernel void stepReduce(	global OutputAtom* intermediateBuffer,
 				int label = labelOrders[chain * NUM_LABELS + forest];
 				int labelIndex = LB_IDX(instance, label, chain);
 
-				labelBuffer[labelIndex] = localBuffer[localIndex];
+				if (localBuffer[localIndex].vote == 0)
+					labelBuffer[labelIndex] = 0.5;
+				else 
+					labelBuffer[labelIndex] = (localBuffer[localIndex].result / localBuffer[localIndex].vote + 1.0) / 2.0;
 			}
 			barrier(CLK_LOCAL_MEM_FENCE);
 		}
