@@ -3,7 +3,7 @@
 #ifndef _WIN32
 #include "atf_library/atf.h"
 
-#define EXHAUSTIVE_THRESHOLD ((size_t)50000)
+#define EXHAUSTIVE_THRESHOLD ((size_t)25000)
 #define ONE ((size_t)1)
 
 template<typename... G_CLASSES >
