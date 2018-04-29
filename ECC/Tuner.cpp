@@ -19,12 +19,14 @@ std::unique_ptr<atf::tuner_with_constraints> make_tuner(G_CLASSES... G_classes)
 	atf::tuner_with_constraints *tuner;
 	if (search_space_size <= EXHAUSTIVE_THRESHOLD)
 	{
+		std::cout << "Exhaustive, " << search_space_size << " Evaluations" << std::endl;
 		tuner = new atf::exhaustive_class<>(atf::cond::evaluations(search_space_size));
 	}
 	else
 	{
-		size_t evaluation = std::min(EXHAUSTIVE_THRESHOLD, (size_t)(0.25f * search_space_size));
+		size_t evaluation = std::min(EXHAUSTIVE_THRESHOLD, (size_t)(0.1f * search_space_size));
 
+		std::cout << "Open Tuner, " << evaluation << " Evaluations" << std::endl;
 		tuner = new atf::open_tuner_class<>(atf::cond::evaluations(evaluation));
 	}
 

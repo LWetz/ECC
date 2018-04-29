@@ -132,7 +132,7 @@ void ECCExecutorOld::runBuild(ECCData& data, size_t treeLimit)
 
 	buildKernel->setDim(1);
 	buildKernel->setGlobalSize({ globalSize });
-	buildKernel->setLocalSize({ 3 });
+	buildKernel->setLocalSize({ numLabels });
 
 	buildKernel->SetArg(0, pGidMultiplier);
 	buildKernel->SetArg(1, seedsBuffer);
@@ -268,8 +268,13 @@ std::vector<MultilabelPrediction> ECCExecutorOld::runClassify(ECCData& data, boo
 	classifyKernel->SetArg(10, voteBuffer);
 
 	classifyKernel->setDim(1);
+
+	int numWG = 32;
+	for(;data.getSize() % numWG != 0; numWG--);
+
+
 	classifyKernel->setGlobalSize({ data.getSize() });
-	classifyKernel->setLocalSize({ 1 });
+	classifyKernel->setLocalSize({ data.getSize() / numWG });
 
 	classifyKernel->execute();
 

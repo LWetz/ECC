@@ -131,7 +131,7 @@ void updateKeyValFile(T keyval, std::string fileName)
 }
 
 int main(int argc, char* argv[]) {
-	if (argc < 2) { std::cout << "First argument has to be 'tuneBuild', 'tuneStep', 'tuneFinal', 'measure' or 'measureold'" << std::endl; return -1; }
+	if (argc < 2) { std::cout << "First argument has to be 'tuneBuild', 'tuneStep', 'tuneFinal', 'measure', 'measureold' or 'measureoldorig'" << std::endl; return -1; }
 
 	const char* pname = getCmdOption(argv + 2, argv + argc, "-platform");
 	const char* dname = getCmdOption(argv + 2, argv + argc, "-device");
@@ -179,7 +179,6 @@ int main(int argc, char* argv[]) {
 		inputCopy = data.getInstances();
 		trainInstances.reserve(trainSize);
 		evalInstances.reserve(evalSize);
-		Util::RANDOM.setSeed(10101001);
 		for (size_t i = 0; i < trainSize; ++i)
 		{
 			int idx = Util::randomInt(inputCopy.size());
@@ -239,6 +238,7 @@ int main(int argc, char* argv[]) {
 	std::string configFileName = makeFileName("config_", dataset, pname, maxLevel, numChains, numTrees);
 	std::string measureFileName = makeFileName("measure_", dataset, pname, maxLevel, numChains, numTrees);
 	std::string oldMeasureFileName = makeFileName("oldmeasure_", dataset, pname, maxLevel, numChains, numTrees);
+	std::string oldMeasureOrigFileName = makeFileName("oldmeasureorig_", dataset, pname, maxLevel, numChains, numTrees);
 
 	std::cout << "Platform: " << pname << std::endl;
 	std::cout << "Device: " << dname << std::endl;
@@ -287,7 +287,7 @@ int main(int argc, char* argv[]) {
 		auto predictions = eccEx.runClassify(evalData, config);
 
 		Measurement performance = eccEx.getMeasurement();
-		std::for_each(performance.begin(), performance.end(), [](auto &d) { d.second *= 1e-06; });
+		std::for_each(performance.begin(), performance.end(), [](auto &d) { std::cout << d.first << ": " << d.second << std::endl; d.second *= 1e-06; });
 
 		PredictionPerformance predictionPerformance(numLabels, evalOriginal.size(), 0.5f);
 		Measurement evaluation = predictionPerformance.calculatePerfomance(evalOriginal, predictions);
@@ -297,12 +297,12 @@ int main(int argc, char* argv[]) {
 	}
 	else if (std::string(argv[1]).compare("measureold") == 0)
 	{
-		ECCExecutorOld eccEx(maxLevel, numAttributes, numAttributes, numTrees, numLabels, numChains, ensembleSubSetSize, forestSubSetSize);
-		eccEx.runBuild(trainData, treesPerRun);
-		auto predictions = eccEx.runClassify(evalData);
+		ECCExecutorOld eccEx(maxLevel, numAttributes, numAttributes, numTrees, numLabels, numChains, ensembleSubSetSize, forestSubSetSize);		
+                eccEx.runBuild(trainData, treesPerRun);
+                auto predictions = eccEx.runClassify(evalData);
+                Measurement performance = eccEx.getMeasurement();
 
-		Measurement performance = eccEx.getMeasurement();
-		std::for_each(performance.begin(), performance.end(), [](auto &d) { d.second *= 1e-06; });
+                std::for_each(performance.begin(), performance.end(), [](auto &d) { std::cout << d.first << ": " << d.second << std::endl; d.second *= 1e-06; });
 
 		PredictionPerformance predictionPerformance(numLabels, evalOriginal.size(), 0.5f);
 		Measurement evaluation = predictionPerformance.calculatePerfomance(evalOriginal, predictions);
@@ -310,6 +310,22 @@ int main(int argc, char* argv[]) {
 
 		makeKeyValFile<Measurement>(performance, oldMeasureFileName);
 	}
+	else if (std::string(argv[1]).compare("measureoldorig") == 0)
+        {
+                ECCExecutorOld eccEx(maxLevel, numAttributes, numAttributes, numTrees, numLabels, numChains, ensembleSubSetSize, forestSubSetSize);
+               	eccEx.runBuild(trainData, treesPerRun);
+          	auto predictions = eccEx.runClassify(evalData, false);
+                Measurement performance = eccEx.getMeasurement();
+		
+		std::for_each(performance.begin(), performance.end(), [](auto &d) { std::cout << d.first << ": " << d.second << std::endl; d.second *= 1e-06; });
+
+                PredictionPerformance predictionPerformance(numLabels, evalOriginal.size(), 0.5f);
+                Measurement evaluation = predictionPerformance.calculatePerfomance(evalOriginal, predictions);
+                performance.insert(evaluation.begin(), evaluation.end());
+
+                makeKeyValFile<Measurement>(performance, oldMeasureOrigFileName);
+        }
+
 
 	PlatformUtil::deinit();
 	return 0;
